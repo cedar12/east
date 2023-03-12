@@ -1,0 +1,14 @@
+[package]
+name = "east_server"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+tokio = { version = "1.13.0", features = ["full"] }
+lazy_static = "1.4.0"
+log="0.4.14"
+log4rs="1.0.0"
+
+east_core={path="../east_core"}
