@@ -1,15 +1,14 @@
-use crate::decoder::Decoder;
+use crate::decoder2::Decoder;
 use crate::types::TypesEnum;
 use super::Msg;
 use crate::byte_buf::ByteBuf;
-use crate::context::Context;
+use crate::context2::Context;
 
 pub struct MsgDecoder{}
 
-#[async_trait::async_trait]
 impl Decoder<Msg> for MsgDecoder{
     
-    async fn decode(&self,ctx:&Context<Msg>,bf:&mut ByteBuf) {
+    fn decode(&self,ctx:&Context<Msg>,bf:&mut ByteBuf) {
         if bf.readable_bytes()<super::MSG_HEADER_LEN{
             return
         }
@@ -32,8 +31,8 @@ impl Decoder<Msg> for MsgDecoder{
         bf.read_bytes(&mut buf);
         bf.clean();
         let msg=Msg::new( msg_type, buf);
-        ctx.out(msg).await;
-        self.decode(ctx, bf).await;
+        ctx.out(msg);
+        self.decode(ctx, bf);
         
     }
     

@@ -3,8 +3,8 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 use std::net::SocketAddr;
 use std::sync::Arc;
-use tokio::sync::{Mutex};
-use tokio::sync::mpsc::{Sender};
+use std::sync::Mutex;
+use std::sync::mpsc::Sender;
 
 pub struct Context<T> {
     in_tx: Arc<Mutex<Sender<T>>>,
@@ -15,7 +15,7 @@ pub struct Context<T> {
 
 impl<T> Debug for Context<T>{
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_tuple("Context").field(&self.addr).finish()
+        f.debug_struct("Context").field("addr", &self.addr).finish()
     }
 }
 
@@ -57,31 +57,18 @@ impl<T> Context<T> {
       self.addr
     }
 
-    pub async fn out(&self, msg: T)
+    pub fn out(&self, msg: T)
     where
         T: Send + 'static,
     {
-        let s=self.out_tx.lock().await;
-        s.send(msg).await;
+        let s=self.out_tx.lock().unwrap();
+        s.send(msg).unwrap();
     }
-    pub async fn write(&self, msg:T) {
-        self.in_tx.lock().await.send(msg).await;
-    }
-
-    pub async fn set_attribute(&self, key: String, value: Box<dyn Any + Send + Sync>) {
-        let mut attributes = self.attributes.lock().await;
-        attributes.insert(key, Arc::new(Mutex::new(value)));
+    pub fn write(&self, msg:T){
+        let s=self.in_tx.lock().unwrap();
+        s.send(msg).unwrap();
     }
 
-    pub async fn get_attribute(&self, key: String) -> Arc<Mutex<Box<dyn Any + Send + Sync>>> {
-        let attributes = self.attributes.lock().await;
-        let v = attributes.get(key.as_str()).unwrap();
-        v.clone()
-    }
+
 
 }
-
-// unsafe impl<T> Send for Context<T>
-// where
-//     T: Send +Sync + 'static,
-// {}

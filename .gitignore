@@ -1,4 +1,7 @@
 /.idea/
 /.vscode/
 
-/target/
+target
+
+
+.DS_Store

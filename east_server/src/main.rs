@@ -3,16 +3,16 @@ extern crate lazy_static;
 extern crate east_core;
 
 mod connection;
+mod connection2;
 mod server;
+mod handler;
+mod handler2;
 
-use connection::Connections;
+mod proxy;
+
 
 use tokio::io::Result;
 
-lazy_static! {
-    // static ref SOCKETS: Mutex<Vec<Connection>> = Mutex::new(Vec::new());
-    static ref CONNS:Connections=Connections::new();
-}
 
 #[tokio::main]
 async fn main() -> Result<()> {

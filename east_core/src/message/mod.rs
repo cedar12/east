@@ -1,16 +1,18 @@
 use crate::types::TypesEnum;
 
 pub mod msg_encoder;
+pub mod msg_encoder2;
 pub mod msg_decoder;
+pub mod msg_decoder2;
 pub mod msg_handler;
 
 pub const MSG_HEADER_LEN:usize=6;
 
 #[derive(Debug)]
 pub struct Msg{
-    msg_type:TypesEnum,
+    pub msg_type:TypesEnum,
     data_len:u32,
-    data:Vec<u8>,
+    pub data:Vec<u8>,
 }
 
 impl Msg{

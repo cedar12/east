@@ -14,7 +14,7 @@ pub mod slice_util;
 
 const CHUNK_SIZE: usize = 1024;
 
-const MAX_SIZE:usize=1024*1024;
+const MAX_SIZE_DRAIN:usize=1024*128;
 
 pub type ByteResult<T> = Result<T, ByteBufError>;
 
@@ -1063,6 +1063,17 @@ impl ByteBuf {
             i = i + 1;
         });
         println!()
+    }
+
+    pub fn clean(&mut self){
+        if self.buf.len()>=MAX_SIZE_DRAIN{
+            self.buf.drain(..self.read_index);
+            self.write_index=self.write_index-self.read_index;
+            self.read_index=0;
+            self.read_mark=-1;
+            self.write_mark= -1;
+        }
+
     }
 
     

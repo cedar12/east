@@ -30,6 +30,9 @@ impl Handler<Msg> for CMsgHandler {
         println!("active {:?}连接", ctx.addr());
         
     }
+    async fn close(&self,ctx:&Context<Msg>){
+        println!("{:?} 断开",ctx.addr())
+    }
 }
 
 #[cfg(test)]
@@ -51,5 +54,11 @@ mod tests{
         stream.write(&[0x86,TypesEnum::Auth as u8,0,0,0,2,0,1]).await?;
         Bootstrap::build(stream,addr, MsgEncoder{}, MsgDecoder{}, CMsgHandler{}).run().await?;
         Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_s(){
+        let s=String::from("你好!");
+        println!("{:?}",s.as_bytes());
     }
 }

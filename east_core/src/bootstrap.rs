@@ -38,8 +38,8 @@ where
 {
     pub fn build(stream: TcpStream,addr:SocketAddr, e: E, d: D, h: H) -> Self {
         // stream.peer_addr();
-        let (in_tx, in_rv) = channel(10);
-        let (out_tx, out_rv) = channel(10);
+        let (in_tx, in_rv) = channel(1024);
+        let (out_tx, out_rv) = channel(1024);
         let (r,w)=io::split(stream);
         Bootstrap {
             encoder: Arc::new(Mutex::new(e)),
@@ -53,7 +53,7 @@ where
         }
     }
 
-    pub async fn run(&mut self) -> std::io::Result<()> {
+    async fn handle_run(&mut self)->std::io::Result<()>{
         let handler = Arc::clone(&self.handler);
         let encoder = Arc::clone(&self.encoder);
         let ctx = Arc::clone(&self.ctx);
@@ -113,14 +113,37 @@ where
         let mut buf = [0u8; READ_SIZE];
         let ctx = &self.ctx;
         loop {
-            let bytes_read = r.lock().await.read(&mut buf).await?;
-            // let bytes_read = ctx.get_stream().await.write().unwrap().read(&mut buf).await?;
-            if bytes_read == 0 {
-                return Ok(());
+            let bytes_read = r.lock().await.read(&mut buf).await;
+            match bytes_read{
+                Ok(0)=>{
+                    let h=self.handler.lock().await;
+                    h.close(ctx).await;
+                    return Ok(())
+                },
+                Ok(n)=>{
+                    if n == 0 {
+                        return Ok(());
+                    }
+                    // println!("n {}",bytes_read);
+                    bf.write_bytes(&buf[..n])?;
+                    self.decoder.decode(ctx, &mut bf).await;
+                },
+                Err(e)=>{
+                    return Err(e)
+                }
             }
-            // println!("n {}",bytes_read);
-            bf.write_bytes(&buf[..bytes_read])?;
-            self.decoder.decode(ctx, &mut bf).await;
+        }
+    }
+
+    pub async fn run(&mut self) -> std::io::Result<()> {
+        let ctx = Arc::clone(&self.ctx);
+        match self.handle_run().await{
+            Ok(())=>Ok(()),
+            Err(e)=>{
+                let h=self.handler.lock().await;
+                h.close(ctx.as_ref()).await;
+                Err(e)
+            }
         }
     }
 

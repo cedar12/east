@@ -7,9 +7,13 @@ pub mod byte_buf;
 pub mod error;
 
 pub mod context;
+pub mod context2;
 pub mod encoder;
+pub mod encoder2;
 pub mod handler;
+pub mod handler2;
 pub mod decoder;
+pub mod decoder2;
 pub mod bootstrap;
 
 pub mod message;
