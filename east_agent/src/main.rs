@@ -1,13 +1,20 @@
 #[macro_use]
+extern crate lazy_static; 
 extern crate east_core;
 
-use east_core::{handler::Handler, message::Msg, context::Context};
-use tokio::io;
+mod handler;
+mod proxy;
+
+use east_core::{handler::Handler, message::{Msg, msg_encoder::MsgEncoder, msg_decoder::MsgDecoder}, context::Context, bootstrap::Bootstrap};
+use handler::AgentHandler;
+use tokio::{io, net::TcpStream};
 
 
 #[tokio::main]
 async fn main() ->io::Result<()>{
-
+    let stream=TcpStream::connect("127.0.0.1:3555").await?;
+    let addr=stream.peer_addr().unwrap();
+    Bootstrap::build(stream, addr, MsgEncoder{}, MsgDecoder{}, AgentHandler{}).run().await?;
     Ok(())
 }
 

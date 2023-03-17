@@ -9,6 +9,7 @@ use tokio::sync::mpsc::{Sender};
 pub struct Context<T> {
     in_tx: Arc<Mutex<Sender<T>>>,
     out_tx: Arc<Mutex<Sender<T>>>,
+    close_tx:Arc<Mutex<Sender<()>>>,
     attributes:Arc<Mutex<HashMap<String, Arc<Mutex<Box<dyn Any + Send + Sync>>>>>>,
     addr:SocketAddr,
 }
@@ -30,6 +31,7 @@ impl<T> Clone for Context<T> {
         Context {
             in_tx:self.in_tx.clone(),
             out_tx:self.out_tx.clone(),
+            close_tx:self.close_tx.clone(),
             attributes:self.attributes.clone(),
             addr:self.addr.clone()
         }
@@ -41,10 +43,11 @@ impl<T> Clone for Context<T> {
 }
 
 impl<T> Context<T> {
-    pub fn new(in_tx: Sender<T>, out_tx: Sender<T>,addr:SocketAddr) -> Self {
+    pub fn new(in_tx: Sender<T>, out_tx: Sender<T>,addr:SocketAddr,close_tx:Sender<()>) -> Self {
         Context {
             in_tx: Arc::new(Mutex::new(in_tx)),
             out_tx: Arc::new(Mutex::new(out_tx)),
+            close_tx:Arc::new(Mutex::new(close_tx)),
             attributes:Arc::new(Mutex::new(HashMap::new())),
             addr
         }
@@ -68,9 +71,18 @@ impl<T> Context<T> {
         self.in_tx.lock().await.send(msg).await;
     }
 
+    pub async fn close(&self) {
+        self.close_tx.lock().await.send(()).await;
+    }
+
     pub async fn set_attribute(&self, key: String, value: Box<dyn Any + Send + Sync>) {
         let mut attributes = self.attributes.lock().await;
         attributes.insert(key, Arc::new(Mutex::new(value)));
+    }
+
+    pub async fn remove_attribute(&self, key: String) {
+        let mut attributes = self.attributes.lock().await;
+        attributes.remove(&key);
     }
 
     pub async fn get_attribute(&self, key: String) -> Arc<Mutex<Box<dyn Any + Send + Sync>>> {

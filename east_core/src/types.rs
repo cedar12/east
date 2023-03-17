@@ -25,5 +25,6 @@ back_to_enum!{
         Auth = 1,
         ProxyOpen,
         ProxyForward,
+        ProxyClose,
     }
 }

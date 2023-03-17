@@ -18,6 +18,12 @@ impl Connection {
     pub fn new(ctx:Context<Msg>,id:String)->Self{
         Connection { ctx:ctx, id:id }
     }
+    pub fn ctx(self)->Context<Msg>{
+        self.ctx
+    }
+    pub fn id(self)->String{
+        self.id
+    }
 }
 
 #[derive(Debug)]

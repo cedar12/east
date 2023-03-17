@@ -6,7 +6,6 @@ mod connection;
 mod connection2;
 mod server;
 mod handler;
-mod handler2;
 
 mod proxy;
 

@@ -9,6 +9,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt, ReadHalf, WriteHalf, self};
 use tokio::sync::{mpsc::channel,Mutex};
 use std::net::SocketAddr;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 const READ_SIZE: usize = 1024;
 
@@ -26,7 +27,8 @@ where
     in_rv: Arc<Mutex<Receiver<T>>>,
     out_rv: Arc<Mutex<Receiver<T>>>,
     r:Arc<Mutex<ReadHalf<TcpStream>>>,
-    w:Arc<Mutex<WriteHalf<TcpStream>>>
+    w:Arc<Mutex<WriteHalf<TcpStream>>>,
+    close:Arc<Mutex<Receiver<()>>>,
 }
 
 impl<E, D, H, T> Bootstrap<E, D, H, T>
@@ -37,19 +39,20 @@ where
     T: Send + Sync + 'static,
 {
     pub fn build(stream: TcpStream,addr:SocketAddr, e: E, d: D, h: H) -> Self {
-        // stream.peer_addr();
         let (in_tx, in_rv) = channel(1024);
         let (out_tx, out_rv) = channel(1024);
+        let (close_tx, close_rv) = channel(1);
         let (r,w)=io::split(stream);
         Bootstrap {
             encoder: Arc::new(Mutex::new(e)),
             decoder: d,
             handler: Arc::new(Mutex::new(h)),
-            ctx: Arc::new(Context::new(in_tx, out_tx,addr)),
+            ctx: Arc::new(Context::new(in_tx, out_tx,addr,close_tx)),
             in_rv: Arc::new(Mutex::new(in_rv)),
             out_rv: Arc::new(Mutex::new(out_rv)),
             r:Arc::new(Mutex::new(r)),
-            w:Arc::new(Mutex::new(w))
+            w:Arc::new(Mutex::new(w)),
+            close:Arc::new(Mutex::new(close_rv)),
         }
     }
 
@@ -64,72 +67,65 @@ where
         let w=Arc::clone(&self.w);
         
         handler.lock().await.active(ctx.as_ref()).await;
-        tokio::spawn(async move {
-            loop{
-                let mut out = out_rv.lock().await;
-                let msg = out.recv().await;
-                if let Some(msg)=msg{
-                    let h=handler.lock().await;
-                    let h=h.read(ctx.as_ref(), msg);
-                    h.await;
-                }
-            }
-        });
-        let ctx = Arc::clone(&self.ctx);
-        tokio::spawn(async move {
-            loop{
-                let mut in_rv = in_rv.lock().await;
-                let msg = in_rv.recv().await;
-                if let Some(msg)=msg{
-                    let mut byte_buf = ByteBuf::new_with_capacity(0);
-                    encoder
-                        .lock()
-                        .await
-                        .encode(ctx.as_ref(), msg, &mut byte_buf);
-                    let mut buf = vec![0u8; byte_buf.readable_bytes()];
-                    byte_buf.read_bytes(&mut buf);
-                    // let ret=ctx.get_stream().write(&buf).await; 
-                    w.lock().await.write(&buf).await;
-                    // ctx.stream_write(&buf).await;
-                    // stream.write(&buf).await;
-                }
-                
-            }
-        });
-        // std::thread::spawn(move || loop {
-        //     let in_rv = in_rv.lock().unwrap();
-        //     let msg = in_rv.recv().unwrap();
-        //     let mut byte_buf = ByteBuf::new_with_capacity(0);
-        //     encoder
-        //         .lock()
-        //         .unwrap()
-        //         .encode(ctx.as_ref(), msg, &mut byte_buf);
-        //     let mut buf = vec![0u8; byte_buf.readable_bytes()];
-        //     byte_buf.read_bytes(&mut buf);
-        //     ctx.get_stream().lock().unwrap().write(&buf).unwrap();
-        // });
-        // self.read_run(read).await
+        let close=Arc::clone(&self.close);
+      
         let mut bf = ByteBuf::new_with_capacity(0);
         let mut buf = [0u8; READ_SIZE];
         let ctx = &self.ctx;
+
+        let mut out = out_rv.lock().await;
+        let mut in_rv = in_rv.lock().await;
+        let mut close = close.lock().await;
+        let mut r=r.lock().await;
+        
         loop {
-            let bytes_read = r.lock().await.read(&mut buf).await;
-            match bytes_read{
-                Ok(0)=>{
-                    let h=self.handler.lock().await;
-                    h.close(ctx).await;
+        // let msg = out.recv().await;
+            tokio::select!{
+                msg = out.recv() => {
+                    if let Some(msg)=msg{
+                        let h=handler.lock().await;
+                        let h=h.read(ctx.as_ref(), msg);
+                        h.await;
+                    }
+                },
+                msg=in_rv.recv()=>{
+                    if let Some(msg)=msg{
+                        let mut byte_buf = ByteBuf::new_with_capacity(0);
+                        encoder
+                            .lock()
+                            .await
+                            .encode(ctx.as_ref(), msg, &mut byte_buf);
+                        let mut buf = vec![0u8; byte_buf.readable_bytes()];
+                        byte_buf.read_bytes(&mut buf);
+                        // let ret=ctx.get_stream().write(&buf).await; 
+                        w.lock().await.write(&buf).await?;
+                        // ctx.stream_write(&buf).await;
+                        // stream.write(&buf).await;
+                    }
+                },
+                _ = close.recv() => {
+                    
                     return Ok(())
                 },
-                Ok(n)=>{
-                    if n == 0 {
-                        return Ok(());
+                n=r.read(&mut buf)=>{
+                    match n{
+                        Ok(0)=>{
+                            let h=self.handler.lock().await;
+                            h.close(ctx).await;
+                            return Ok(())
+                        },
+                        Ok(n)=>{
+                            if n == 0 {
+                                return Ok(());
+                            }
+                            // println!("n {}",bytes_read);
+                            bf.write_bytes(&buf[..n])?;
+                            self.decoder.decode(ctx, &mut bf).await;
+                        },
+                        Err(e)=>{
+                            return Err(e)
+                        }
                     }
-                    // println!("n {}",bytes_read);
-                    bf.write_bytes(&buf[..n])?;
-                    self.decoder.decode(ctx, &mut bf).await;
-                },
-                Err(e)=>{
-                    return Err(e)
                 }
             }
         }
@@ -138,10 +134,14 @@ where
     pub async fn run(&mut self) -> std::io::Result<()> {
         let ctx = Arc::clone(&self.ctx);
         match self.handle_run().await{
-            Ok(())=>Ok(()),
+            Ok(())=>{
+                ctx.close().await;
+                Ok(())
+            },
             Err(e)=>{
                 let h=self.handler.lock().await;
                 h.close(ctx.as_ref()).await;
+                ctx.close().await;
                 Err(e)
             }
         }
