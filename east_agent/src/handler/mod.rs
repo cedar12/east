@@ -58,12 +58,13 @@ impl Handler<Msg> for AgentHandler {
 async fn proxy_open(msg:Msg,ctx: Context<Msg>){
   let bytes=msg.data;
   let mut bf=ByteBuf::new_from(&bytes[..]);
-  let i1=bf.read_u8();
-  let i2=bf.read_u8();
-  let i3=bf.read_u8();
-  let i4=bf.read_u8();
+  // let i1=bf.read_u8();
+  // let i2=bf.read_u8();
+  // let i3=bf.read_u8();
+  // let i4=bf.read_u8();
+  let host=bf.read_string_with_u8_be_len();
   let port = bf.read_u16_be();
-  let addr=format!("{}.{}.{}.{}:{}",i1,i2,i3,i4,port).to_string();
+  let addr=format!("{}:{}",host,port).to_string();
   let id=bf.read_u64_be();
   println!("fid->{},ip->{}",id,addr);
   let stream=TcpStream::connect(addr).await.unwrap();

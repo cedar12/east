@@ -12,12 +12,13 @@ use std::sync::Arc;
 
 const READ_SIZE: usize = 1024;
 
-pub struct Bootstrap<E, D, H, T>
+pub struct Bootstrap<E, D, H, T,S>
 where
     E: Encoder<T> + Send + 'static,
     D: Decoder<T> + Send + 'static,
     H: Handler<T> + Send + 'static,
     T: Send + Sync + 'static,
+    S: AsyncWriteExt + AsyncReadExt
 {
     encoder: Arc<Mutex<E>>,
     decoder: D,
@@ -25,19 +26,20 @@ where
     ctx: Arc<Context<T>>,
     in_rv: Arc<Mutex<Receiver<T>>>,
     out_rv: Arc<Mutex<Receiver<T>>>,
-    r:Arc<Mutex<ReadHalf<TcpStream>>>,
-    w:Arc<Mutex<WriteHalf<TcpStream>>>,
+    r:Arc<Mutex<ReadHalf<S>>>,
+    w:Arc<Mutex<WriteHalf<S>>>,
     close:Arc<Mutex<Receiver<()>>>,
 }
 
-impl<E, D, H, T> Bootstrap<E, D, H, T>
+impl<E, D, H, T,S> Bootstrap<E, D, H, T,S>
 where
     E: Encoder<T> + Send + 'static,
     D: Decoder<T> + Send + 'static,
     H: Handler<T> + Send + 'static,
     T: Send + Sync + 'static,
+    S: AsyncWriteExt + AsyncReadExt
 {
-    pub fn build(stream: TcpStream,addr:SocketAddr, e: E, d: D, h: H) -> Self {
+    pub fn build(stream: S,addr:SocketAddr, e: E, d: D, h: H) -> Self {
         let (in_tx, in_rv) = channel(1024);
         let (out_tx, out_rv) = channel(1024);
         let (close_tx, close_rv) = channel(128);
@@ -79,7 +81,6 @@ where
         let mut r=r.lock().await;
         
         loop {
-        // let msg = out.recv().await;
             tokio::select!{
                 msg = out.recv() => {
                     if let Some(msg)=msg{
@@ -102,14 +103,11 @@ where
                 },
                 _ = close.recv() => {
                     w.lock().await.shutdown().await?;
-                    println!("bootstrap close");
                     return Ok(())
                 },
                 n=r.read(&mut buf)=>{
                     match n{
                         Ok(0)=>{
-                            // let h=self.handler.lock().await;
-                            // h.close(ctx).await;
                             return Ok(())
                         },
                         Ok(n)=>{
@@ -130,46 +128,20 @@ where
 
     pub async fn run(&mut self) -> std::io::Result<()> {
         let ctx = Arc::clone(&self.ctx);
-        match self.handle_run().await{
-            Ok(())=>{
-                // if ctx.is_run(){
-                //     ctx.close().await;
-                // }
-                let h=self.handler.lock().await;
-                h.close(ctx.as_ref()).await;
-                Ok(())
-            },
-            Err(e)=>{
-                let h=self.handler.lock().await;
-                h.close(ctx.as_ref()).await;
-                
-                Err(e)
-            }
-        }
+        let result=self.handle_run().await;
+        let h=self.handler.lock().await;
+        h.close(ctx.as_ref()).await;
+        result
     }
 
-    // async fn read_run(&mut self,mut read:ReadHalf<TcpStream) -> std::io::Result<()> {
-    //     let mut bf = ByteBuf::new_with_capacity(0);
-    //     let mut buf = [0u8; READ_SIZE];
-    //     let ctx = &self.ctx;
-    //     loop {
-    //         let bytes_read = read.read(&mut buf).await?;
-    //         // let bytes_read = ctx.get_stream().await.write().unwrap().read(&mut buf).await?;
-    //         if bytes_read == 0 {
-    //             return Ok(());
-    //         }
-    //         // println!("n {}",bytes_read);
-    //         bf.write_bytes(&buf[..bytes_read])?;
-    //         self.decoder.decode(ctx, &mut bf).await;
-    //     }
-    // }
+
 }
 
-unsafe impl<E, D, H, T> Send for Bootstrap<E, D, H, T>
-where
-    E: Encoder<T> + Send + 'static,
-    D: Decoder<T> + Send + 'static,
-    H: Handler<T> + Send + 'static,
-    T: Send + Sync +'static,
-{
-}
+// unsafe impl<E, D, H, T> Send for Bootstrap<E, D, H, T>
+// where
+//     E: Encoder<T> + Send + 'static,
+//     D: Decoder<T> + Send + 'static,
+//     H: Handler<T> + Send + 'static,
+//     T: Send + Sync +'static,
+// {
+// }

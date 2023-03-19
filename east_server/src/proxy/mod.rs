@@ -2,9 +2,9 @@ use std::{sync::{Arc, atomic::{AtomicUsize, Ordering, AtomicU64}}, rc::Rc, colle
 
 use anyhow::{Result, Ok};
 use east_core::{message::Msg, types::TypesEnum, byte_buf::ByteBuf, bootstrap::Bootstrap, context::Context};
-use tokio::{net::{TcpListener, TcpStream}, io::{split, ReadHalf,WriteHalf, AsyncReadExt}, spawn, sync::{broadcast::Sender, Mutex}};
+use tokio::{net::{TcpListener, TcpStream}, io::{split, ReadHalf,WriteHalf, AsyncReadExt}, spawn, sync::{broadcast::{Sender, Receiver, self}, Mutex}, select};
 
-use crate::{connection::Conns, proxy::{proxy_encoder::ProxyEncoder, proxy_decoder::ProxyDecoder, proxy_handler::ProxyHandler}};
+use crate::{connection::Conns, proxy::{proxy_encoder::ProxyEncoder, proxy_decoder::ProxyDecoder, proxy_handler::ProxyHandler}, config};
 
 lazy_static!{
   static ref last_id:AtomicU64=AtomicU64::new(1);
@@ -25,15 +25,18 @@ pub struct ProxyMsg{
 pub struct Proxy{
   addr:String,
   listen:Arc<Option<TcpListener>>,
-  w_map:HashMap<u64,WriteHalf<TcpStream>>
+  c_rv:Arc<Mutex<Receiver<()>>>,
+  c_tx:Arc<Mutex<Sender<()>>>,
 }
 
 impl Proxy{
   pub fn new(addr:String)->Self{
+    let (tx,rv)=broadcast::channel::<()>(1);
     Proxy{
       addr:addr,
       listen:Arc::new(None),
-      w_map:HashMap::new(),
+      c_rv:Arc::new(Mutex::new(rv)),
+      c_tx:Arc::new(Mutex::new(tx))
     }
   }
 
@@ -44,67 +47,60 @@ impl Proxy{
     Ok(())
   }
 
+  pub async fn close(&self){
+    self.c_tx.lock().await.send(()).unwrap();
+  }
+
+  
+
   pub async fn accept(&mut self,conn_id:String,ctx:Context<Msg>)->Result<()>{
     let l=Arc::clone(&self.listen);
+    let mut rv=self.c_rv.lock().await;
     if let Some(listen)=l.as_ref(){
       println!("开始接受代理连接{}",conn_id);
       loop{
-        let (stream,addr)=listen.accept().await?;
-        
-        // let (mut r,w)=split(stream);
-        let id=last_id.load(Ordering::Relaxed);
-        // self.w_map.insert(id, w);
-        if u64::MAX==id{
-          last_id.store(1, Ordering::Relaxed);
-        }else{
-          last_id.store(id+1, Ordering::Relaxed);
+        select! {
+          _=rv.recv()=>{
+            return Ok(())
+          },
+          ret=listen.accept()=>{
+            let (stream,addr)=ret.unwrap();
+            let id=last_id.load(Ordering::Relaxed);
+            if u64::MAX==id{
+              last_id.store(1, Ordering::Relaxed);
+            }else{
+              last_id.store(id+1, Ordering::Relaxed);
+            }
+            println!("{:?}连接代理端口, id->{}",addr,id);
+            let boot=Bootstrap::build(stream, addr, ProxyEncoder{}, ProxyDecoder{}, ProxyHandler{ctx:ctx.clone(),id:id});
+            ctx.set_attribute(format!("{}_{}",STREAM,id), Box::new(Arc::new(Mutex::new(boot)))).await;
+            let conn_id=conn_id.clone();
+            let mut bf=ByteBuf::new_with_capacity(0);
+            let conf=Arc::clone(&config::CONF);
+            let host=conf.agent.target_host.clone();
+            let port=conf.agent.target_port;
+            // bf.write_u8_be(121);
+            // bf.write_u8_be(201);
+            // bf.write_u8_be(67);
+            // bf.write_u8_be(203);
+            bf.write_string_with_u8_be_len(host);
+            bf.write_u16_be(port);
+            bf.write_u64_be(id);
+            let open_msg=Msg::new(TypesEnum::ProxyOpen,bf.available_bytes().to_vec());
+            let conn=Conns.get(conn_id.clone()).await;
+            match conn{
+                  Some(conn)=>{
+                    conn.ctx().write(open_msg).await;
+                  },
+                  None=>{
+                    println!("无{}的连接，关闭此监听",conn_id);
+                    return Ok(())
+                  }
+            };
+          }
+          }
         }
-        println!("{:?}连接代理端口, id->{}",addr,id);
-        let boot=Bootstrap::build(stream, addr, ProxyEncoder{}, ProxyDecoder{}, ProxyHandler{ctx:ctx.clone(),id:id});
-        ctx.set_attribute(format!("{}_{}",STREAM,id), Box::new(Arc::new(Mutex::new(boot)))).await;
-        let conn_id=conn_id.clone();
-        let mut bf=ByteBuf::new_with_capacity(0);
-        bf.write_u8_be(127u8);
-        bf.write_u8_be(0u8);
-        bf.write_u8_be(0u8);
-        bf.write_u8_be(1u8);
-        bf.write_u16_be(8080u16);
-        bf.write_u64_be(id);
-        let open_msg=Msg::new(TypesEnum::ProxyOpen,bf.available_bytes().to_vec());
-        let conn=Conns.get(conn_id.clone()).await;
-        match conn{
-              Some(conn)=>{
-                conn.ctx().write(open_msg).await;
-              },
-              None=>{
-                println!("无{}的连接",conn_id);
-              }
-        };
-        // Bootstrap::build(stream, addr, ProxyEncoder{}, ProxyDecoder{}, ProxyHandler{ctx:ctx.clone(),id:id}).run().await.unwrap();
-        // spawn(async move{
-        //   loop{
-        //     let mut buf=vec![0u8;64];
-        //     let n=r.read(&mut buf).await.unwrap();
-        //     if n==0{
-        //       return;
-        //     }
-            
-        //     let conn=Conns.get(conn_id.clone()).await;
-        //     match conn{
-        //       Some(conn)=>{
-        //         let mut buf=buf[..n].to_vec();
-        //         let mut id_bytes=id.to_be_bytes().to_vec();
-        //         id_bytes.append(&mut buf);
-        //         let msg=Msg::new(TypesEnum::ProxyForward,id_bytes);
-        //         conn.ctx().write(msg).await;
-        //       },
-        //       None=>{
-        //         println!("错误，不存在 {}",conn_id)
-        //       }
-        //     };
-        //   }
-        // });
-      }
+        
     }
     Ok(())
   }

@@ -16,12 +16,7 @@ impl Handler<Msg> for ServerHandler{
   }
   async fn read(&self,ctx:&Context<Msg>,msg:Msg){
     println!("server read {:?} {:?}",msg.msg_type,msg.data.len());
-    // match handle(ctx,msg).await{
-    //   Ok(())=>{},
-    //   Err(e)=>{
-    //     println!("error {:?}",e);
-    //   }
-    // };
+
     match msg.msg_type{
       TypesEnum::Auth=>{
         let s=String::from_utf8(msg.data).unwrap();
@@ -46,7 +41,6 @@ impl Handler<Msg> for ServerHandler{
               proxy.accept(id3,c.clone()).await.unwrap();
             });
             
-            // ctx.set_attribute("proxy".into(), Box::new(proxy)).await;
           }
         }
         
@@ -57,13 +51,10 @@ impl Handler<Msg> for ServerHandler{
         
         let mut bf=ByteBuf::new_from(&msg.data);
         let fid=bf.read_u64_be();
-        // let id=ctx.get_attribute("id".into()).await;
         let stream=ctx.get_attribute(format!("{}_{}",proxy::STREAM,fid)).await;
-        // let proxy=ctx.get_attribute("proxy".into()).await;
         let stream=stream.lock().await;
-        // let mut proxy=proxy.lock().await;
-        if let Some(boot) = stream.downcast_ref::<Arc<Mutex<Bootstrap<ProxyEncoder,ProxyDecoder,ProxyHandler,ProxyMsg>>>>() {
-          // println!("id->{:?}", id);
+        if let Some(boot) = stream.downcast_ref::<Arc<Mutex<Bootstrap<ProxyEncoder,ProxyDecoder,ProxyHandler,ProxyMsg,TcpStream>>>>() {
+
           let boot=Arc::clone(boot);
           ctx.remove_attribute(format!("{}_{}",proxy::STREAM,fid)).await;
           spawn(async move{
@@ -71,14 +62,6 @@ impl Handler<Msg> for ServerHandler{
             println!("id->{},已关闭",fid);
           });
           
-          // match proxy.downcast_mut::<Proxy>(){
-          //   Some(proxy)=>{
-          //     proxy.accpet(id.clone(),ctx.clone()).await.unwrap();
-          //   },
-          //   None=>{
-          //     println!("接收代理连接错误");
-          //   }
-          // }
         } else {
           println!("无boot->{}",fid);
         }
@@ -106,13 +89,10 @@ impl Handler<Msg> for ServerHandler{
          
         
         let map=proxy::ProxyMap.lock().await;
-        println!("server close {} {:?} ",id, map);
         let result=map.get(&id);
         match result{
           Some(ctx)=>{
-            println!("开始close {:?}",ctx);
             ctx.close().await;
-            // proxy::ProxyMap.lock().await.remove(&id);
             println!("server ProxyMap close {} {:?} ",id, map);
           },
           None=>{
@@ -131,8 +111,3 @@ impl Handler<Msg> for ServerHandler{
     connection::Conns.remove(ctx.clone()).await;
   }
 }
-
-// async fn handle(ctx:&Context<Msg>,msg:Msg)->Result<()>{
-  
-//   Ok(())
-// }

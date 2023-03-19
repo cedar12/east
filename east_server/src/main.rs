@@ -9,6 +9,9 @@ mod handler;
 
 mod proxy;
 
+mod config;
+
+mod tests;
 
 use tokio::io::Result;
 
