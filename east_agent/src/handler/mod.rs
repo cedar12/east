@@ -24,18 +24,19 @@ impl Handler<Msg> for AgentHandler {
           TypesEnum::ProxyClose=>{
             let mut bf=ByteBuf::new_from(&msg.data);
             let id=bf.read_u64_be();
-            proxy::ProxyMap.lock().await.remove(&id);
-            println!("agent close {} {:?} ",id, proxy::ProxyMap.lock().await);
-            // match proxy::ProxyMap.lock().await.get(&id){
-            //   Some(ctx)=>{
-            //     ctx.clone().close().await;
-            //     proxy::ProxyMap.lock().await.remove(&id);
-            //     println!("agent close {} {:?} ",id, proxy::ProxyMap.lock().await);
-            //   }, 
-            //   None=>{
-            //     println!("{} 不存在",id)
-            //   }
-            // }
+            // proxy::ProxyMap.lock().await.remove(&id);
+            let map=proxy::ProxyMap.lock().await;
+            println!("agent close {} {:?} ",id, map);
+            match map.get(&id){
+              Some(ctx)=>{
+                ctx.close().await;
+                // proxy::ProxyMap.lock().await.remove(&id);
+                println!("agent close {} {:?} ",id, map);
+              }, 
+              None=>{
+                println!("{} 不存在",id)
+              }
+            }
            
            
             

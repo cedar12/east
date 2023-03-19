@@ -64,11 +64,11 @@ impl Proxy{
         ctx.set_attribute(format!("{}_{}",STREAM,id), Box::new(Arc::new(Mutex::new(boot)))).await;
         let conn_id=conn_id.clone();
         let mut bf=ByteBuf::new_with_capacity(0);
-        bf.write_u8_be(121u8);
-        bf.write_u8_be(201u8);
-        bf.write_u8_be(67u8);
-        bf.write_u8_be(203u8);
-        bf.write_u16_be(42880u16);
+        bf.write_u8_be(127u8);
+        bf.write_u8_be(0u8);
+        bf.write_u8_be(0u8);
+        bf.write_u8_be(1u8);
+        bf.write_u16_be(8080u16);
         bf.write_u64_be(id);
         let open_msg=Msg::new(TypesEnum::ProxyOpen,bf.available_bytes().to_vec());
         let conn=Conns.get(conn_id.clone()).await;
@@ -76,7 +76,9 @@ impl Proxy{
               Some(conn)=>{
                 conn.ctx().write(open_msg).await;
               },
-              None=>{}
+              None=>{
+                println!("无{}的连接",conn_id);
+              }
         };
         // Bootstrap::build(stream, addr, ProxyEncoder{}, ProxyDecoder{}, ProxyHandler{ctx:ctx.clone(),id:id}).run().await.unwrap();
         // spawn(async move{

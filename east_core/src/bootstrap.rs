@@ -9,7 +9,6 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt, ReadHalf, WriteHalf, self};
 use tokio::sync::{mpsc::channel,Mutex};
 use std::net::SocketAddr;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
 
 const READ_SIZE: usize = 1024;
 
@@ -41,8 +40,9 @@ where
     pub fn build(stream: TcpStream,addr:SocketAddr, e: E, d: D, h: H) -> Self {
         let (in_tx, in_rv) = channel(1024);
         let (out_tx, out_rv) = channel(1024);
-        let (close_tx, close_rv) = channel(1);
+        let (close_tx, close_rv) = channel(128);
         let (r,w)=io::split(stream);
+        
         Bootstrap {
             encoder: Arc::new(Mutex::new(e)),
             decoder: d,
@@ -97,28 +97,25 @@ where
                             .encode(ctx.as_ref(), msg, &mut byte_buf);
                         let mut buf = vec![0u8; byte_buf.readable_bytes()];
                         byte_buf.read_bytes(&mut buf);
-                        // let ret=ctx.get_stream().write(&buf).await; 
                         w.lock().await.write(&buf).await?;
-                        // ctx.stream_write(&buf).await;
-                        // stream.write(&buf).await;
                     }
                 },
                 _ = close.recv() => {
-                    
+                    w.lock().await.shutdown().await?;
+                    println!("bootstrap close");
                     return Ok(())
                 },
                 n=r.read(&mut buf)=>{
                     match n{
                         Ok(0)=>{
-                            let h=self.handler.lock().await;
-                            h.close(ctx).await;
+                            // let h=self.handler.lock().await;
+                            // h.close(ctx).await;
                             return Ok(())
                         },
                         Ok(n)=>{
                             if n == 0 {
                                 return Ok(());
                             }
-                            // println!("n {}",bytes_read);
                             bf.write_bytes(&buf[..n])?;
                             self.decoder.decode(ctx, &mut bf).await;
                         },
@@ -135,13 +132,17 @@ where
         let ctx = Arc::clone(&self.ctx);
         match self.handle_run().await{
             Ok(())=>{
-                ctx.close().await;
+                // if ctx.is_run(){
+                //     ctx.close().await;
+                // }
+                let h=self.handler.lock().await;
+                h.close(ctx.as_ref()).await;
                 Ok(())
             },
             Err(e)=>{
                 let h=self.handler.lock().await;
                 h.close(ctx.as_ref()).await;
-                ctx.close().await;
+                
                 Err(e)
             }
         }

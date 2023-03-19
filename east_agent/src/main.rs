@@ -44,6 +44,8 @@ impl Handler<Msg> for CMsgHandler {
 
 #[cfg(test)]
 mod tests{
+    use std::net::IpAddr;
+
     use east_core::bootstrap::Bootstrap;
     use east_core::message::msg_decoder::MsgDecoder;
     use east_core::message::msg_encoder::MsgEncoder;
@@ -67,5 +69,7 @@ mod tests{
     async fn test_s(){
         let s=String::from("你好!");
         println!("{:?}",s.as_bytes());
+        let a:IpAddr=String::from("www.baidu.com").parse().unwrap();
+        println!("{:?}",a);
     }
 }

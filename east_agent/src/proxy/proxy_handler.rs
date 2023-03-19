@@ -32,6 +32,9 @@ impl Handler<Vec<u8>> for ProxyHandler{
     println!("close {:?} {}", ctx.addr(),self.id);
     proxy::ProxyMap.lock().await.remove(&self.id);
     println!("ProxyMap {:?} ", proxy::ProxyMap.lock().await);
+    if !ctx.is_run(){
+      return;
+    }
     let mut bf=ByteBuf::new_with_capacity(0);
     bf.write_u64_be(self.id);
     let msg=Msg::new(TypesEnum::ProxyClose, bf.available_bytes().to_vec());

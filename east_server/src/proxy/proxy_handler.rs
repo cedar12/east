@@ -29,10 +29,14 @@ impl Handler<ProxyMsg> for ProxyHandler{
     proxy::ProxyMap.lock().await.insert(self.id,ctx.clone());
   }
   async fn close(&self,ctx:&Context<ProxyMsg>){
-    println!("proxy active close {:?}  id->{}", ctx.addr(),self.id);
-    proxy::ProxyMap.lock().await.remove(&self.id);
-    println!("ProxyMap {:?} ", proxy::ProxyMap.lock().await);
-    self.ctx.remove_attribute(format!("{}_{}",proxy::STREAM,self.id)).await;
+    let mut map=proxy::ProxyMap.lock().await;
+    println!("proxy active close {:?}  id->{} {:?}", ctx.addr(),self.id,map);
+    map.remove(&self.id);
+    println!("ProxyMap {:?} ", map);
+    if !ctx.is_run(){
+      return;
+    }
+    // self.ctx.remove_attribute(format!("{}_{}",proxy::STREAM,self.id)).await;
     let mut bf=ByteBuf::new_with_capacity(0);
     bf.write_u64_be(self.id);
     let msg=Msg::new(TypesEnum::ProxyClose, bf.available_bytes().to_vec());

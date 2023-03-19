@@ -60,13 +60,15 @@ impl Handler<Msg> for ServerHandler{
         // let id=ctx.get_attribute("id".into()).await;
         let stream=ctx.get_attribute(format!("{}_{}",proxy::STREAM,fid)).await;
         // let proxy=ctx.get_attribute("proxy".into()).await;
-        let mut stream=stream.lock().await;
+        let stream=stream.lock().await;
         // let mut proxy=proxy.lock().await;
         if let Some(boot) = stream.downcast_ref::<Arc<Mutex<Bootstrap<ProxyEncoder,ProxyDecoder,ProxyHandler,ProxyMsg>>>>() {
           // println!("id->{:?}", id);
           let boot=Arc::clone(boot);
+          ctx.remove_attribute(format!("{}_{}",proxy::STREAM,fid)).await;
           spawn(async move{
             boot.lock().await.run().await.unwrap();
+            println!("id->{},已关闭",fid);
           });
           
           // match proxy.downcast_mut::<Proxy>(){
@@ -78,7 +80,7 @@ impl Handler<Msg> for ServerHandler{
           //   }
           // }
         } else {
-          println!("Not a string...");
+          println!("无boot->{}",fid);
         }
         
         
@@ -99,21 +101,24 @@ impl Handler<Msg> for ServerHandler{
         }
       },
       TypesEnum::ProxyClose=>{
-        
         let mut bf=ByteBuf::new_from(&msg.data);
         let id=bf.read_u64_be();
-        proxy::ProxyMap.lock().await.remove(&id);
-        println!("server close {} {:?} ",id, proxy::ProxyMap.lock().await);
-        // match proxy::ProxyMap.lock().await.get(&id){
-        //   Some(ctx)=>{
-        //     ctx.close().await;
-        //     // proxy::ProxyMap.lock().await.remove(&id);
-        //     println!("server ProxyMap close {} {:?} ",id, proxy::ProxyMap.lock().await);
-        //   },
-        //   None=>{
-        //     println!("无代理连接 {} {:?}",id,proxy::ProxyMap.lock().await)
-        //   }
-        // }
+         
+        
+        let map=proxy::ProxyMap.lock().await;
+        println!("server close {} {:?} ",id, map);
+        let result=map.get(&id);
+        match result{
+          Some(ctx)=>{
+            println!("开始close {:?}",ctx);
+            ctx.close().await;
+            // proxy::ProxyMap.lock().await.remove(&id);
+            println!("server ProxyMap close {} {:?} ",id, map);
+          },
+          None=>{
+            println!("无代理连接 {} {:?}",id,proxy::ProxyMap.lock().await)
+          }
+        }
         
       }
     }

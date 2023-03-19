@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 use std::net::SocketAddr;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use tokio::sync::{Mutex};
 use tokio::sync::mpsc::{Sender};
 
@@ -12,6 +13,7 @@ pub struct Context<T> {
     close_tx:Arc<Mutex<Sender<()>>>,
     attributes:Arc<Mutex<HashMap<String, Arc<Mutex<Box<dyn Any + Send + Sync>>>>>>,
     addr:SocketAddr,
+    is_run:Arc<AtomicBool>,
 }
 
 impl<T> Debug for Context<T>{
@@ -26,14 +28,17 @@ impl<T> PartialEq for Context<T>{
     }
 }
 
+
 impl<T> Clone for Context<T> {
     fn clone(&self) -> Self {
+        let is_run=self.is_run.load(Ordering::Relaxed);
         Context {
             in_tx:self.in_tx.clone(),
             out_tx:self.out_tx.clone(),
             close_tx:self.close_tx.clone(),
             attributes:self.attributes.clone(),
-            addr:self.addr.clone()
+            addr:self.addr.clone(),
+            is_run:self.is_run.clone(),
         }
     }
 
@@ -49,7 +54,8 @@ impl<T> Context<T> {
             out_tx: Arc::new(Mutex::new(out_tx)),
             close_tx:Arc::new(Mutex::new(close_tx)),
             attributes:Arc::new(Mutex::new(HashMap::new())),
-            addr
+            addr,
+            is_run:Arc::new(AtomicBool::new(true))
         }
     }
 
@@ -72,7 +78,16 @@ impl<T> Context<T> {
     }
 
     pub async fn close(&self) {
-        self.close_tx.lock().await.send(()).await;
+        self.is_run.store(false, Ordering::Relaxed);
+        self.close_tx.lock().await.send(()).await.unwrap();
+    }
+    pub async fn close_run(&self) {
+        self.is_run.store(false, Ordering::Relaxed);
+        self.close_tx.lock().await.send(()).await.unwrap();
+    }
+
+    pub fn is_run(&self)->bool{
+        self.is_run.load(Ordering::Relaxed)
     }
 
     pub async fn set_attribute(&self, key: String, value: Box<dyn Any + Send + Sync>) {
