@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use anyhow::Result;
 use tokio::{net::TcpStream, spawn, sync::Mutex};
 
-use crate::{connection, proxy::{Proxy, self, ProxyMsg, proxy_encoder::ProxyEncoder, proxy_decoder::ProxyDecoder, proxy_handler::ProxyHandler}};
+use crate::{connection, proxy::{Proxy, self, ProxyMsg, proxy_encoder::ProxyEncoder, proxy_decoder::ProxyDecoder, proxy_handler::ProxyHandler}, config};
 pub struct ServerHandler{
 }
 
@@ -21,29 +21,36 @@ impl Handler<Msg> for ServerHandler{
       TypesEnum::Auth=>{
         let s=String::from_utf8(msg.data).unwrap();
         println!("认证 {}",s);
-        let id=s.clone();
-        let id2=s.clone();
-        let id3=s.clone();
-        ctx.set_attribute("id".into(), Box::new(id2)).await;
-        let opt=connection::Conns.get(s).await;
-        match opt{
-          Some(c)=>{
-            println!("{:?} 已经连接了，不能重复连接",c);
-          }
+        match config::CONF.agent.get(&s){
+          Some(_)=>{
+            let id=s.clone();
+            let id2=s.clone();
+            let id3=s.clone();
+            ctx.set_attribute("id".into(), Box::new(id2)).await;
+            let opt=connection::Conns.get(s).await;
+            match opt{
+              Some(c)=>{
+                println!("{:?} 已经连接了，不能重复连接",c);
+              }
+              None=>{
+                let conn=connection::Connection::new(ctx.clone(),id);
+                connection::Conns.push(conn).await;
+                
+                let c=ctx.clone();
+                spawn(async move{
+                  let mut proxy=Proxy::new("0.0.0.0:8089".into());
+                  proxy.listen().await.unwrap();
+                  proxy.accept(id3,c.clone()).await.unwrap();
+                });
+                
+              }
+            }
+          },
           None=>{
-            let conn=connection::Connection::new(ctx.clone(),id);
-            connection::Conns.push(conn).await;
-            
-            let c=ctx.clone();
-            spawn(async move{
-              let mut proxy=Proxy::new("0.0.0.0:8089".into());
-              proxy.listen().await.unwrap();
-              proxy.accept(id3,c.clone()).await.unwrap();
-            });
-            
+            println!("无{}配置，认证不通过",s);
+            ctx.close().await;
           }
         }
-        
        
       },
       TypesEnum::ProxyOpen=>{

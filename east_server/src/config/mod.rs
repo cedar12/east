@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{sync::Arc, collections::HashMap};
 
 use schemars::schema::RootSchema;
 use serde::{de::DeserializeOwned, Serialize, Deserialize};
@@ -20,7 +20,7 @@ lazy_static!{
 pub struct GlobalConfig{
     #[serde(default = "default_server")]
     pub server:Server,
-    pub agent:Agent,
+    pub agent:HashMap<String,Agent>,
 }
 
 fn default_server()->Server{

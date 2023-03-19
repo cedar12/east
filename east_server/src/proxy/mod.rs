@@ -77,26 +77,36 @@ impl Proxy{
             let conn_id=conn_id.clone();
             let mut bf=ByteBuf::new_with_capacity(0);
             let conf=Arc::clone(&config::CONF);
-            let host=conf.agent.target_host.clone();
-            let port=conf.agent.target_port;
-            // bf.write_u8_be(121);
-            // bf.write_u8_be(201);
-            // bf.write_u8_be(67);
-            // bf.write_u8_be(203);
-            bf.write_string_with_u8_be_len(host);
-            bf.write_u16_be(port);
-            bf.write_u64_be(id);
-            let open_msg=Msg::new(TypesEnum::ProxyOpen,bf.available_bytes().to_vec());
-            let conn=Conns.get(conn_id.clone()).await;
-            match conn{
-                  Some(conn)=>{
-                    conn.ctx().write(open_msg).await;
-                  },
-                  None=>{
-                    println!("无{}的连接，关闭此监听",conn_id);
-                    return Ok(())
-                  }
+            
+            match conf.agent.get(&conn_id){
+              Some(agent)=>{
+                let host=agent.target_host.clone();
+                let port=agent.target_port;
+                // bf.write_u8_be(121);
+                // bf.write_u8_be(201);
+                // bf.write_u8_be(67);
+                // bf.write_u8_be(203);
+                bf.write_string_with_u8_be_len(host);
+                bf.write_u16_be(port);
+                bf.write_u64_be(id);
+                let open_msg=Msg::new(TypesEnum::ProxyOpen,bf.available_bytes().to_vec());
+                let conn=Conns.get(conn_id.clone()).await;
+                match conn{
+                      Some(conn)=>{
+                        conn.ctx().write(open_msg).await;
+                      },
+                      None=>{
+                        println!("无{}的连接，关闭此监听",conn_id);
+                        return Ok(())
+                      }
+                };  
+              },
+              None=>{
+                println!("无{}配置",conn_id);
+                return Ok(())
+              }
             };
+            
           }
           }
         }
