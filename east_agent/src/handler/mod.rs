@@ -1,7 +1,9 @@
+use std::sync::Arc;
+
 use east_core::{handler::Handler, message::Msg, context::Context, types::TypesEnum, byte_buf::ByteBuf, bootstrap::Bootstrap};
 use tokio::{net::TcpStream, spawn};
 
-use crate::proxy::{proxy_encoder::ProxyEncoder, proxy_decoder::ProxyDecoder, proxy_handler::ProxyHandler, self};
+use crate::{proxy::{proxy_encoder::ProxyEncoder, proxy_decoder::ProxyDecoder, proxy_handler::ProxyHandler, self}, config};
 
 lazy_static!{
   pub static ref CTX:Option<Context<Msg>>=None;
@@ -46,12 +48,14 @@ impl Handler<Msg> for AgentHandler {
     }
     async fn active(&self, ctx: &Context<Msg>) {
         println!("active {:?}", ctx.addr());
-        let id=String::from("test");
+        let conf=Arc::clone(&config::CONF);
+        let id=conf.id.clone();
         let msg=Msg::new(TypesEnum::Auth,id.as_bytes().to_vec());
         ctx.write(msg).await;
     }
     async fn close(&self, ctx: &Context<Msg>) {
         println!("close {:?} ", ctx.addr());
+        
     }
 }
 
