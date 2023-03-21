@@ -3,7 +3,7 @@ use std::{sync::Arc, any::{Any, TypeId}, path::PathBuf};
 use east_plugin::plugin::{Plugin, DatabasePlugin, Type, DBConfig};
 
 
-use crate::{config, plugin};
+use crate::{config::{self, agent::Agent}, plugin};
 
 #[cfg(target_os="windows")]
 use libloading::os::windows::{Symbol, Library};
@@ -95,4 +95,20 @@ fn test_dir(){
         let agents=plugin.get_agents();
         println!("{:?}",agents);
     }
+}
+
+#[test]
+fn test_ip(){
+    let white:String="192.168.1.0/24".into();
+    let v:Vec<&str>=white.split("/").collect();
+    println!("{:?}",v);
+
+    let a=Agent{
+        bind_port: 2000,
+        target_host: "".into(),
+        target_port: 123,
+        whitelist: vec!["192.168.1.0/24".into(),"127.0.0.1/32".into()],
+    };
+    let r=a.match_addr("127.0.1.1".into());
+    assert_eq!(true,r)
 }
