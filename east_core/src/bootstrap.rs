@@ -1,4 +1,3 @@
-use tokio::net::TcpStream;
 use tokio::sync::mpsc::Receiver;
 
 use crate::byte_buf::ByteBuf;
@@ -10,7 +9,7 @@ use tokio::sync::{mpsc::channel,Mutex};
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-const READ_SIZE: usize = 1024;
+const READ_SIZE: usize = 1024*10;
 
 pub struct Bootstrap<E, D, H, T,S>
 where
@@ -29,6 +28,7 @@ where
     r:Arc<Mutex<ReadHalf<S>>>,
     w:Arc<Mutex<WriteHalf<S>>>,
     close:Arc<Mutex<Receiver<()>>>,
+    read_size:usize,
 }
 
 impl<E, D, H, T,S> Bootstrap<E, D, H, T,S>
@@ -55,7 +55,12 @@ where
             r:Arc::new(Mutex::new(r)),
             w:Arc::new(Mutex::new(w)),
             close:Arc::new(Mutex::new(close_rv)),
+            read_size:READ_SIZE,
         }
+    }
+
+    pub fn capacity(&mut self,size:usize){
+        self.read_size=size;
     }
 
     async fn handle_run(&mut self)->std::io::Result<()>{
@@ -71,8 +76,8 @@ where
         handler.lock().await.active(ctx.as_ref()).await;
         let close=Arc::clone(&self.close);
       
-        let mut bf = ByteBuf::new_with_capacity(0);
-        let mut buf = [0u8; READ_SIZE];
+        let mut bf = ByteBuf::new_with_capacity(self.read_size);
+        let mut buf = vec![0u8; self.read_size];
         let ctx = &self.ctx;
 
         let mut out = out_rv.lock().await;
@@ -91,7 +96,7 @@ where
                 },
                 msg=in_rv.recv()=>{
                     if let Some(msg)=msg{
-                        let mut byte_buf = ByteBuf::new_with_capacity(0);
+                        let mut byte_buf = ByteBuf::new_with_capacity(self.read_size);
                         encoder
                             .lock()
                             .await

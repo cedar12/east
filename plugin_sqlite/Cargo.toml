@@ -1,0 +1,16 @@
+[package]
+name = "plugin_sqlite"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+name = "east_sqlite"
+crate-type = ["dylib"]
+
+
+[dependencies]
+east_plugin={path="../east_plugin"}
+rusqlite = { version = "0.28.0", features = ["bundled"] }
+lazy_static = "1.4.0"
+anyhow="1.0"

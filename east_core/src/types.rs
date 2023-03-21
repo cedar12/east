@@ -26,5 +26,6 @@ back_to_enum!{
         ProxyOpen,
         ProxyForward,
         ProxyClose,
+        Heartbeat,
     }
 }

@@ -2,6 +2,8 @@
 /.vscode/
 
 target
-
+log
 
 .DS_Store
+
+plugin

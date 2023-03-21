@@ -14,6 +14,7 @@ impl Decoder<ProxyMsg> for ProxyDecoder{
       }
       let mut buf=vec![0u8;byte_buf.readable_bytes()];
       byte_buf.read_bytes(&mut buf);
+      byte_buf.clean();
       ctx.out(ProxyMsg{buf:buf}).await;
     }
     

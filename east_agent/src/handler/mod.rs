@@ -1,7 +1,7 @@
-use std::sync::Arc;
+use std::{sync::Arc};
 
 use east_core::{handler::Handler, message::Msg, context::Context, types::TypesEnum, byte_buf::ByteBuf, bootstrap::Bootstrap};
-use tokio::{net::TcpStream, spawn};
+use tokio::{net::TcpStream, spawn, time};
 
 use crate::{proxy::{proxy_encoder::ProxyEncoder, proxy_decoder::ProxyDecoder, proxy_handler::ProxyHandler, self}, config};
 
@@ -16,7 +16,16 @@ impl Handler<Msg> for AgentHandler {
     async fn read(&self, ctx: &Context<Msg>, msg: Msg) {
         println!("read len {:?}", msg.data.len());
         match msg.msg_type{
-          TypesEnum::Auth=>{},
+          TypesEnum::Auth=>{
+            let ctx=ctx.clone();
+            spawn(async move{
+              loop {
+                  time::sleep(time::Duration::from_millis(5000)).await;
+                  let msg=Msg::new(TypesEnum::Heartbeat, vec![]);
+                  ctx.write(msg).await;
+              }
+            });
+          },
           TypesEnum::ProxyOpen=>{
             spawn(proxy_open(msg,ctx.clone()));
           },
@@ -39,9 +48,9 @@ impl Handler<Msg> for AgentHandler {
                 println!("{} 不存在",id)
               }
             }
-           
-           
             
+          },
+          TypesEnum::Heartbeat=>{
           }
         }
         // ctx.write(m).await;
@@ -55,7 +64,11 @@ impl Handler<Msg> for AgentHandler {
     }
     async fn close(&self, ctx: &Context<Msg>) {
         println!("close {:?} ", ctx.addr());
-        
+        let mut map=proxy::ProxyMap.lock().await;
+        for (_,v) in map.iter(){
+          v.close().await;
+        }
+        map.clear();
     }
 }
 

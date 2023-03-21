@@ -102,8 +102,11 @@ impl<T> Context<T> {
 
     pub async fn get_attribute(&self, key: String) -> Arc<Mutex<Box<dyn Any + Send + Sync>>> {
         let attributes = self.attributes.lock().await;
-        let v = attributes.get(key.as_str()).unwrap();
-        v.clone()
+        let v = attributes.get(key.as_str());
+        match v{
+            Some(v)=>v.clone(),
+            None=>Arc::new(Mutex::new(Box::new(())))
+        }
     }
 
 }

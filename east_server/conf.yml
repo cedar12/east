@@ -2,6 +2,14 @@ server:
   bind: 0.0.0.0:3555
 agent:
   test:
-    bind_port: 8089
-    target_host: 127.0.0.1
-    target_port: 42880
+    - bind_port: 8089
+      target_host: 127.0.0.1
+      target_port: 42880
+      whitelist: 
+        - 192.168.1.*
+        - 127.0.0.1
+
+    - bind_port: 8989
+      target_host: 121.201.67.203
+      target_port: 5880
+      

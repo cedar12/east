@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{sync::Arc, time::{SystemTime, UNIX_EPOCH}};
 
 use east_core::{handler::Handler, message::Msg, context::Context, types::TypesEnum, byte_buf::ByteBuf, bootstrap::Bootstrap};
 use async_trait::async_trait;
@@ -6,23 +6,25 @@ use anyhow::Result;
 use tokio::{net::TcpStream, spawn, sync::Mutex};
 
 use crate::{connection, proxy::{Proxy, self, ProxyMsg, proxy_encoder::ProxyEncoder, proxy_decoder::ProxyDecoder, proxy_handler::ProxyHandler}, config};
+
+const TIME_KEY:&str="heartbeat_time";
+
 pub struct ServerHandler{
 }
 
 #[async_trait]
 impl Handler<Msg> for ServerHandler{
   async fn active(&self,ctx:&Context<Msg>){
-    println!("{} 已连接上",ctx.addr());
+    log::info!("{} 已连接上",ctx.addr());
   }
   async fn read(&self,ctx:&Context<Msg>,msg:Msg){
-    println!("server read {:?} {:?}",msg.msg_type,msg.data.len());
 
     match msg.msg_type{
       TypesEnum::Auth=>{
         let s=String::from_utf8(msg.data).unwrap();
-        println!("认证 {}",s);
+        log::info!("{}请求认证",s);
         match config::CONF.agent.get(&s){
-          Some(_)=>{
+          Some(agents)=>{
             let id=s.clone();
             let id2=s.clone();
             let id3=s.clone();
@@ -30,31 +32,41 @@ impl Handler<Msg> for ServerHandler{
             let opt=connection::Conns.get(s).await;
             match opt{
               Some(c)=>{
-                println!("{:?} 已经连接了，不能重复连接",c);
+                log::info!("{:?}已经连接了，不能重复连接",c);
               }
               None=>{
                 let conn=connection::Connection::new(ctx.clone(),id);
                 connection::Conns.push(conn).await;
-                
-                let c=ctx.clone();
-                spawn(async move{
-                  let mut proxy=Proxy::new("0.0.0.0:8089".into());
-                  proxy.listen().await.unwrap();
-                  proxy.accept(id3,c.clone()).await.unwrap();
-                });
+                let msg=Msg::new(TypesEnum::Auth,vec![]);
+                ctx.write(msg).await;
+                for a in agents.iter(){
+                  let bind_port=a.bind_port.clone();
+                  let id3=id3.clone();
+                  let c=ctx.clone();
+                  ctx.set_attribute("id".into(), Box::new(id3.clone())).await;
+                  spawn(async move{
+                    let mut proxy=Proxy::new(format!("0.0.0.0:{}",bind_port).into());
+                    if let Err(e)=proxy.listen().await{
+                      log::error!("{:?}",e);
+                      return
+                    }
+                    if let Err(e)=proxy.accept(id3,c.clone()).await{
+                      log::error!("{:?}",e);
+                    }
+                  });
+                }
                 
               }
             }
           },
           None=>{
-            println!("无{}配置，认证不通过",s);
+            log::warn!("无{}配置，认证不通过",s);
             ctx.close().await;
           }
         }
        
       },
       TypesEnum::ProxyOpen=>{
-        println!("打开转发");
         
         let mut bf=ByteBuf::new_from(&msg.data);
         let fid=bf.read_u64_be();
@@ -65,18 +77,20 @@ impl Handler<Msg> for ServerHandler{
           let boot=Arc::clone(boot);
           ctx.remove_attribute(format!("{}_{}",proxy::STREAM,fid)).await;
           spawn(async move{
-            boot.lock().await.run().await.unwrap();
-            println!("id->{},已关闭",fid);
+            let ret=boot.lock().await.run().await;
+            if let Err(e)=ret{
+              log::error!("{:?}",e);
+            }
+            log::info!("id->{},已关闭",fid);
           });
           
         } else {
-          println!("无boot->{}",fid);
+          log::warn!("无{}处理器",fid);
         }
         
         
       },
       TypesEnum::ProxyForward=>{
-        // println!("转发数据 {:?}",proxy::ProxyMap.lock().await);
         let mut bf=ByteBuf::new_from(&msg.data);
         let id=bf.read_u64_be();
         match proxy::ProxyMap.lock().await.get(&id){
@@ -86,27 +100,38 @@ impl Handler<Msg> for ServerHandler{
             ctx.write(ProxyMsg{buf:buf}).await;
           },
           None=>{
-            println!("无代理连接 {}",id)
+            log::warn!("无{}代理连接，无法转发",id);
+            let mut bf=ByteBuf::new_with_capacity(0);
+            bf.write_u64_be(id);
+            let msg=Msg::new(TypesEnum::ProxyClose,bf.available_bytes().to_vec());
+            ctx.write(msg).await;
           }
         }
       },
       TypesEnum::ProxyClose=>{
         let mut bf=ByteBuf::new_from(&msg.data);
         let id=bf.read_u64_be();
-         
         
         let map=proxy::ProxyMap.lock().await;
         let result=map.get(&id);
         match result{
           Some(ctx)=>{
             ctx.close().await;
-            println!("server ProxyMap close {} {:?} ",id, map);
+            log::info!("关闭代理连接 {} ",id);
           },
           None=>{
-            println!("无代理连接 {} {:?}",id,proxy::ProxyMap.lock().await)
+            log::warn!("无代理连接 {}",id)
           }
         }
         
+      },
+      TypesEnum::Heartbeat=>{
+        match SystemTime::now().duration_since(UNIX_EPOCH) {
+          Ok(n) => {
+            ctx.set_attribute(TIME_KEY.into(), Box::new(n.as_secs())).await;
+          },
+          Err(e) => log::error!("{:?}",e),
+        }
       }
     }
     // connection::Conns.println().await;
@@ -114,7 +139,18 @@ impl Handler<Msg> for ServerHandler{
     // ctx.write(m).await;
   }
   async fn close(&self,ctx:&Context<Msg>){
-    println!("{:?} 断开",ctx.addr());
+    log::info!("{:?} 断开",ctx.addr());
+    let proxy_attr=ctx.get_attribute(proxy::PROXY_KEY.into()).await;
+    let proxy=proxy_attr.lock().await;
+    if let Some(proxy)=proxy.downcast_ref::<Proxy>(){
+      proxy.close().await;
+    }
+    let id_attr=ctx.get_attribute("id".into()).await;
+    let id=id_attr.lock().await;
+    if let Some(id)=id.downcast_ref::<String>(){
+      proxy::remove(id).await;
+    }
+    ctx.remove_attribute("id".into()).await;
     connection::Conns.remove(ctx.clone()).await;
   }
 }

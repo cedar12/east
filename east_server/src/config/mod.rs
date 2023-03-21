@@ -20,7 +20,7 @@ lazy_static!{
 pub struct GlobalConfig{
     #[serde(default = "default_server")]
     pub server:Server,
-    pub agent:HashMap<String,Agent>,
+    pub agent:HashMap<String,Vec<Agent>>,
 }
 
 fn default_server()->Server{
