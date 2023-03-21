@@ -24,7 +24,7 @@ pub struct GlobalConfig{
 }
 
 fn default_server()->Server{
-    Server { bind: String::from("127.0.0.1:3555") }
+    Server { bind: String::from("127.0.0.1:3555"),plugin:"plugin".into() }
 }
 
 fn load_config<T>(path: &str) -> T where T: DeserializeOwned {

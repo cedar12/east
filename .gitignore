@@ -6,4 +6,6 @@ log
 
 .DS_Store
 
-plugin
+*.dll
+*.dylib
+*.so

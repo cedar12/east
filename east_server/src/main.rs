@@ -13,6 +13,8 @@ mod proxy;
 
 mod config;
 
+mod plugin;
+
 mod tests;
 
 use log::LevelFilter;

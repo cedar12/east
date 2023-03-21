@@ -19,6 +19,7 @@ pub trait DatabasePlugin:Plugin{
   
 }
 
+#[derive(Debug,Clone)]
 pub enum Type {
   DatabasePlugin,
 }
