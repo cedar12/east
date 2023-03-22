@@ -6,13 +6,13 @@ server:
 agent:
   test:
     - bind_port: 8089
-      target_host: 127.0.0.1
+      target_host: 121.201.67.203
       target_port: 42880
       whitelist: 
         - 192.168.0.0/16
         - 127.0.0.1
 
     - bind_port: 8989
-      target_host: 127.0.0.1
-      target_port: 5880
+      target_host: 14.215.177.38
+      target_port: 80
       

@@ -64,12 +64,14 @@ pub trait DatabasePlugin:Plugin{
 }
 
 pub trait WebPlugin:Plugin{
+  fn run(&self)->anyhow::Result<()>;
 
 }
 
 #[derive(Debug,Clone,PartialEq, Eq)]
 pub enum Type {
   DatabasePlugin,
+  WebPlugin,
 }
 
 pub struct DBConfig{

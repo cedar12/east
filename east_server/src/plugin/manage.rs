@@ -80,7 +80,8 @@ impl PluginManager {
                     name,
                     pi,
                 );
-                self.database_config(namec.as_str(),pic).await;
+                self.database_config(namec.as_str(),pic.clone()).await;
+                self.web_run(namec.as_str(), pic.clone()).await;
                 true
             }
             Err(_) => false,
@@ -96,6 +97,18 @@ impl PluginManager {
         }
       }
       Ok(())
+    }
+
+    async fn web_run(&self,name:&str,pi:PluginInfo)->anyhow::Result<()>{
+        if pi.plugin_type==Type::WebPlugin{
+            let p=self.call_plugin_web(name).await;
+            if let Some(p)=p{
+              tokio::spawn(async move {
+                p.run().unwrap();
+              });
+            }
+          }
+        Ok(())
     }
 
     pub fn get_plugin(&self, name: &str) -> Option<&PluginInfo> {
@@ -128,33 +141,28 @@ impl PluginManager {
     pub async fn call_plugin_db(&self, name: &str) -> Option<Box<dyn DatabasePlugin>> {
         if let Some(pi) = self.plugins.get(name) {
             let lib = Arc::clone(&pi.lib);
-            match pi.plugin_type {
-                Type::DatabasePlugin => {
-                    let plugin_create: Symbol<unsafe extern "C" fn() -> *mut dyn DatabasePlugin> =
-                        unsafe { lib.get(b"create") }.unwrap();
-                    let plugin = unsafe { Box::from_raw(plugin_create()) };
-                    return Some(plugin);
-                }
+            if pi.plugin_type == Type::DatabasePlugin {
+                let plugin_create: Symbol<unsafe extern "C" fn() -> *mut dyn DatabasePlugin> =
+                    unsafe { lib.get(b"create") }.unwrap();
+                let plugin = unsafe { Box::from_raw(plugin_create()) };
+                return Some(plugin);
             }
+            
         }
         None
     }
 
-    pub fn call_plugin_web<F>(&self, name: &str, f: F)
-    where
-        F: FnOnce(Box<dyn WebPlugin>),
-    {
+    pub async fn call_plugin_web(&self, name: &str)-> Option<Box<dyn WebPlugin>> {
         if let Some(pi) = self.plugins.get(name) {
             let lib = Arc::clone(&pi.lib);
-            match pi.plugin_type {
-                Type::DatabasePlugin => {
-                    let plugin_create: Symbol<unsafe extern "C" fn() -> *mut dyn WebPlugin> =
-                        unsafe { lib.get(b"create") }.unwrap();
-                    let plugin = unsafe { Box::from_raw(plugin_create()) };
-                    f(plugin)
-                }
+            if pi.plugin_type == Type::WebPlugin{
+                let plugin_create: Symbol<unsafe extern "C" fn() -> *mut dyn WebPlugin> =
+                    unsafe { lib.get(b"create") }.unwrap();
+                let plugin = unsafe { Box::from_raw(plugin_create()) };
+                return Some(plugin);
             }
         }
+        None
     }
 
     // 初始化插件目录

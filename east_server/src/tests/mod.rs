@@ -69,7 +69,8 @@ fn test_sqlite_plugin(){
                 password: None,
             }).unwrap();
             println!("{:?}",plugin.get_agents());
-        }
+        },
+        Type::WebPlugin=>{}
     }
     
 }

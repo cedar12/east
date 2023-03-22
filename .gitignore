@@ -10,4 +10,7 @@ log
 *.dylib
 *.so
 
+*.db
+
+*.yml
 conf.yml

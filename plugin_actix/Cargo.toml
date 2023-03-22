@@ -1,0 +1,15 @@
+[package]
+name = "plugin_actix"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+name = "east_actix"
+crate-type = ["dylib"]
+
+[dependencies]
+actix-web = "4"
+east_plugin={path="../east_plugin"}
+anyhow="1.0"
