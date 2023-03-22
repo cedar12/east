@@ -3,7 +3,7 @@ use std::{sync::Arc, collections::HashMap};
 use schemars::schema::RootSchema;
 use serde::{de::DeserializeOwned, Serialize, Deserialize};
 
-use self::{server::Server, agent::Agent};
+use self::{server::{Server, Plugin, default_plugin, default_bind, default_database}, agent::Agent};
 
 
 pub mod server;
@@ -24,7 +24,7 @@ pub struct GlobalConfig{
 }
 
 fn default_server()->Server{
-    Server { bind: String::from("127.0.0.1:3555"),plugin:"plugin".into() }
+    Server { bind: default_bind(),plugin:Plugin { dir: default_plugin(), database: default_database() }}
 }
 
 fn load_config<T>(path: &str) -> T where T: DeserializeOwned {

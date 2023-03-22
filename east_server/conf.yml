@@ -1,5 +1,8 @@
 server:
   bind: 0.0.0.0:3555
+  plugin: 
+    database:
+      url: ../plugin_sqlite/data.db
 agent:
   test:
     - bind_port: 8089

@@ -1,4 +1,4 @@
-use std::{sync::Arc, any::{Any, TypeId}, path::PathBuf};
+use std::{sync::Arc, any::{Any, TypeId}, path::{PathBuf, Path}};
 
 use east_plugin::plugin::{Plugin, DatabasePlugin, Type, DBConfig};
 
@@ -74,28 +74,6 @@ fn test_sqlite_plugin(){
     
 }
 
-#[test]
-fn test_dir(){
-    let plugins=plugin::list().unwrap();
-    println!("{:?}",plugins);
-    let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-            let path=dir.as_path().parent().unwrap();
-    let mut plugin=None;
-    for p in plugins.iter(){
-        match p.plugin_type{
-            Type::DatabasePlugin=>{
-                let p=plugin::get_database_plugin(p.clone()).unwrap();
-                p.config(DBConfig { url: path.join("plugin_sqlite").join("data.db").to_str().expect("").into(), username: None, password: None }).unwrap();
-                plugin.insert(p);
-                break;
-            }
-        }
-    }
-    if let Some(plugin)=plugin{
-        let agents=plugin.get_agents();
-        println!("{:?}",agents);
-    }
-}
 
 #[test]
 fn test_ip(){
@@ -107,8 +85,27 @@ fn test_ip(){
         bind_port: 2000,
         target_host: "".into(),
         target_port: 123,
-        whitelist: vec!["192.168.1.0/24".into(),"127.0.0.1/32".into()],
+        whitelist: vec!["192.168.1.0/24".into(),"127.0.0.1/16".into()],
     };
     let r=a.match_addr("127.0.1.1".into());
     assert_eq!(true,r)
+}
+
+#[tokio::test]
+async fn test_plugin_manage(){
+    let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let path=dir.as_path().parent().unwrap();
+    let mut pm=plugin::manage::PluginManager::new();
+    pm.init_plugin_dir(Path::new("plugin")).await;
+    println!("{:?}",pm.plugins());
+    if let Some((name,pi))=pm.get_plugin_by_type(Type::DatabasePlugin){
+        println!("{:?}->{:?}",name,pi);
+        let plugin=pm.call_plugin_db(name).await;
+        if let Some(plugin)=plugin{
+            // plugin.config(config::CONF.server.plugin.database.clone().db_config()).unwrap();
+            println!("{:?}",plugin.get_agents());
+        }
+        
+    }
+    
 }

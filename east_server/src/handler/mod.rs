@@ -3,9 +3,10 @@ use std::{sync::Arc, time::{SystemTime, UNIX_EPOCH}};
 use east_core::{handler::Handler, message::Msg, context::Context, types::TypesEnum, byte_buf::ByteBuf, bootstrap::Bootstrap};
 use async_trait::async_trait;
 use anyhow::Result;
+use east_plugin::plugin::Type;
 use tokio::{net::TcpStream, spawn, sync::Mutex};
 
-use crate::{connection, proxy::{Proxy, self, ProxyMsg, proxy_encoder::ProxyEncoder, proxy_decoder::ProxyDecoder, proxy_handler::ProxyHandler}, config};
+use crate::{connection, proxy::{Proxy, self, ProxyMsg, proxy_encoder::ProxyEncoder, proxy_decoder::ProxyDecoder, proxy_handler::ProxyHandler}, config, plugin};
 
 const TIME_KEY:&str="heartbeat_time";
 
@@ -23,47 +24,104 @@ impl Handler<Msg> for ServerHandler{
       TypesEnum::Auth=>{
         let s=String::from_utf8(msg.data).unwrap();
         log::info!("{}请求认证",s);
-        match config::CONF.agent.get(&s){
-          Some(agents)=>{
+        let plugin_result=plugin::database_plugin().await;
+        match plugin_result{
+          Ok((plugin,pi))=>{
+            // log::info!("使用插件{:?}",pi);
             let id=s.clone();
-            let id2=s.clone();
-            let id3=s.clone();
-            ctx.set_attribute("id".into(), Box::new(id2)).await;
-            let opt=connection::Conns.get(s).await;
-            match opt{
-              Some(c)=>{
-                log::info!("{:?}已经连接了，不能重复连接",c);
-              }
-              None=>{
-                let conn=connection::Connection::new(ctx.clone(),id);
-                connection::Conns.push(conn).await;
-                let msg=Msg::new(TypesEnum::Auth,vec![]);
-                ctx.write(msg).await;
-                for a in agents.iter(){
-                  let bind_port=a.bind_port.clone();
-                  let id3=id3.clone();
-                  let c=ctx.clone();
-                  ctx.set_attribute("id".into(), Box::new(id3.clone())).await;
-                  spawn(async move{
-                    let mut proxy=Proxy::new(format!("0.0.0.0:{}",bind_port).into());
-                    if let Err(e)=proxy.listen().await{
-                      log::error!("{:?}",e);
-                      return
+            let agent=plugin.get_agent(id);
+            match agent{
+              Ok(agent)=>{
+                let id=s.clone();
+                let id2=s.clone();
+                let id3=s.clone();
+                ctx.set_attribute("id".into(), Box::new(id2)).await;
+                let opt=connection::Conns.get(s).await;
+                match opt{
+                  Some(c)=>{
+                    log::info!("{:?}已经连接了，不能重复连接",c);
+                  }
+                  None=>{
+                    let conn=connection::Connection::new(ctx.clone(),id);
+                    connection::Conns.push(conn).await;
+                    let msg=Msg::new(TypesEnum::Auth,vec![]);
+                    ctx.write(msg).await;
+                    for a in agent.proxy.iter(){
+                      if !a.enable{
+                        continue;
+                      }
+                      let bind_port=a.bind_port.clone();
+                      let c=ctx.clone();
+                      let id=id3.clone();
+                      ctx.set_attribute("id".into(), Box::new(id)).await;
+                      let id=id3.clone();
+                      spawn(async move{
+                        let mut proxy=Proxy::new(bind_port);
+                        if let Err(e)=proxy.listen().await{
+                          log::error!("{:?}",e);
+                          return
+                        }
+                        if let Err(e)=proxy.accept(id,c.clone()).await{
+                          log::error!("{:?}",e);
+                        }
+                      });
                     }
-                    if let Err(e)=proxy.accept(id3,c.clone()).await{
-                      log::error!("{:?}",e);
-                    }
-                  });
+                    
+                  }
                 }
-                
+
+              },
+              Err(_)=>{
+                log::warn!("无{}配置，认证不通过",s);
+                ctx.close().await;
               }
             }
           },
-          None=>{
-            log::warn!("无{}配置，认证不通过",s);
-            ctx.close().await;
+          Err(_)=>{
+            match config::CONF.agent.get(&s){
+              Some(agents)=>{
+                let id=s.clone();
+                let id2=s.clone();
+                let id3=s.clone();
+                ctx.set_attribute("id".into(), Box::new(id2)).await;
+                let opt=connection::Conns.get(s).await;
+                match opt{
+                  Some(c)=>{
+                    log::info!("{:?}已经连接了，不能重复连接",c);
+                  }
+                  None=>{
+                    let conn=connection::Connection::new(ctx.clone(),id);
+                    connection::Conns.push(conn).await;
+                    let msg=Msg::new(TypesEnum::Auth,vec![]);
+                    ctx.write(msg).await;
+                    for a in agents.iter(){
+                      let bind_port=a.bind_port.clone();
+                      let id3=id3.clone();
+                      let c=ctx.clone();
+                      ctx.set_attribute("id".into(), Box::new(id3.clone())).await;
+                      spawn(async move{
+                        let mut proxy=Proxy::new(bind_port);
+                        if let Err(e)=proxy.listen().await{
+                          log::error!("{:?}",e);
+                          return
+                        }
+                        if let Err(e)=proxy.accept(id3,c.clone()).await{
+                          log::error!("{:?}",e);
+                        }
+                      });
+                    }
+                    
+                  }
+                }
+              },
+              None=>{
+                log::warn!("无{}配置，认证不通过",s);
+                ctx.close().await;
+              }
+            }
           }
         }
+        
        
       },
       TypesEnum::ProxyOpen=>{

@@ -32,20 +32,27 @@ impl Agent{
         }
         let target_ip:Ipv4Addr=ip.parse().unwrap();
         for (_,white) in self.whitelist.iter().enumerate(){
+            if white==""{
+                continue;
+            }
             let v:Vec<&str>=white.split("/").collect();
-            if v.len()==1{
-                let ip:Ipv4Addr=v[0].parse().unwrap();
-                let rule = IpRule::new(ip,32);
-                if rule.matches(&target_ip) {
-                    return true;
-                } 
-            }else if v.len()==2{
-                let prefix: u32 = v[1].parse().unwrap();
-                let ip:Ipv4Addr=v[0].parse().unwrap();
-                let rule = IpRule::new(ip,prefix);
-                if rule.matches(&target_ip) {
-                    return true;
-                } 
+            let mut prefix: u32=32;
+            if v.len()==2{
+                let r=v[1].parse::<u32>();
+                match r{
+                    Err(_)=>continue,
+                    Ok(p)=>prefix = p
+                }
+            }
+            let ip=v[0].parse::<Ipv4Addr>();
+            match ip{
+                Err(_)=>continue,
+                Ok(ip)=>{
+                    let rule = IpRule::new(ip,prefix);
+                    if rule.matches(&target_ip) {
+                        return true;
+                    }
+                }
             }
             
         }

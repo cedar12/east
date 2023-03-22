@@ -1,6 +1,7 @@
 
 use std::sync::{Arc, Mutex};
 
+use anyhow::anyhow;
 use east_plugin::{plugin::{DatabasePlugin, Plugin, Type}, agent::Agent, proxy::Proxy};
 
 use crate::db::{self, CONN};
@@ -101,6 +102,75 @@ impl DatabasePlugin for SqlitePlugin {
         }
         Ok(())
     }
+
+    fn get_agent(&self,id:String)->anyhow::Result<Agent> {
+        let conn=CONN.lock().unwrap();
+        if let Some(conn)=conn.as_ref(){
+            let mut stmt = conn.prepare("SELECT id, name FROM agent where id=?")?;
+            let agent_iter = stmt.query_map([id], |row| {
+                Ok(Agent {
+                    id: row.get(0).unwrap(),
+                    name: row.get(1).unwrap(),
+                    proxy: vec![],
+                })
+            })?;
+            for a in agent_iter{
+                let mut agent=a?;
+                let id=agent.clone().id;
+                let mut stmt=conn.prepare("select bind_port,target_host,target_port,enable,whitelist from proxy where agent_id=?").unwrap();
+                let proxy_iter = stmt.query_map([id], |row| {
+                    let whitelist:String=row.get(4)?;
+                    let v:Vec<&str>=whitelist.split(",").collect();
+                    let v:Vec<String>=v.iter().map(|f|f.to_string()).collect();
+                    Ok(Proxy {
+                        bind_port: row.get(0)?,
+                        target_host: row.get(1)?,
+                        target_port: row.get(2)?,
+                        enable: row.get(3)?,
+                        whitelist: v,
+                    })
+                });
+                if let Ok(proxy_iter)=proxy_iter{
+                    for proxy in proxy_iter{
+                        let proxy=proxy?;
+                        agent.proxy.push(proxy);
+                    }
+                }
+                return Ok(agent)
+            }
+            
+            
+        }
+        Err(anyhow!(""))
+    }
+
+    fn get_proxy(&self,bind_port:u16)->anyhow::Result<Proxy> {
+        let conn=CONN.lock().unwrap();
+        if let Some(conn)=conn.as_ref(){
+            let mut stmt = conn.prepare("SELECT bind_port,target_host,target_port,enable,whitelist from proxy where bind_port=?")?;
+            let proxy_iter = stmt.query_map([bind_port], |row| {
+                let whiltelist:String=row.get(4).unwrap();
+                let ve:Vec<&str>=whiltelist.split(",").collect();
+                let mut v:Vec<String>=vec![];
+                if ve.len()>=1&&ve[0]!=""{
+                    v=ve.iter().map(|f|f.to_string()).collect();
+                }
+
+                Ok(Proxy {
+                    bind_port: row.get(0).unwrap(),
+                    target_host: row.get(1).unwrap(),
+                    target_port: row.get(2).unwrap(),
+                    enable: row.get(3).unwrap(),
+                    whitelist: v,
+                })
+            })?;
+            for proxy in proxy_iter{
+                let proxy=proxy?;
+                return Ok(proxy)
+            }
+        }
+        Err(anyhow!(""))
+    }
 }
 impl Plugin for SqlitePlugin{
 
@@ -119,5 +189,8 @@ impl Plugin for SqlitePlugin{
     fn plugin_type(&self)->east_plugin::plugin::Type {
         Type::DatabasePlugin
     }
+    
+}
+unsafe impl Send for SqlitePlugin{
     
 }
