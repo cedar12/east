@@ -36,6 +36,7 @@ impl WebPlugin for ActixPlugin {
             .service(route::agents)
             .service(route::add_agent)
             .service(route::remove_agent)
+            .service(route::add_proxy)
             .service(Files::new("/","./static/").index_file("index.html"))
         })
         .bind(bind)?

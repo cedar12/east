@@ -1,5 +1,5 @@
 use actix_web::{web, Responder, get,HttpRequest, HttpResponse, Error, post};
-use east_plugin::plugin::DatabasePlugin;
+use east_plugin::{plugin::DatabasePlugin, proxy::Proxy};
 use east_plugin::agent::Agent;
 use serde::{Serialize, Deserialize};
 
@@ -33,6 +33,20 @@ pub async fn add_agent(agent:web::Json<Agent>,data: web::Data<Box<dyn DatabasePl
 pub async fn remove_agent(agent:web::Path<String>,data: web::Data<Box<dyn DatabasePlugin>>) -> impl Responder {
     let id=agent.into_inner();
     let result=data.remove_agent(id);
+    match result{
+        Ok(())=>HttpResponse::Ok()
+        .content_type("application/json")
+        .json(Resp{code:2000,info:"成功".into(),data:()}),
+        Err(e)=>HttpResponse::Ok()
+        .content_type("application/json")
+        .json(Resp{code:4000,info:format!("{:?}",e),data:()})
+    }
+    
+}
+
+#[post("/proxy/add/{agent_id}")]
+pub async fn add_proxy(agent_id:web::Path<String>,proxy:web::Json<Proxy>,data: web::Data<Box<dyn DatabasePlugin>>) -> impl Responder {
+    let result=data.add_proxy(agent_id.clone(),proxy.clone());
     match result{
         Ok(())=>HttpResponse::Ok()
         .content_type("application/json")
