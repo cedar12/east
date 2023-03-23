@@ -1,6 +1,8 @@
+use serde::Serialize;
+
 use crate::proxy::Proxy;
 
-#[derive(Debug,Clone)]
+#[derive(Debug,Clone,Serialize)]
 pub struct Agent{
   pub id:String,
   pub name:String,

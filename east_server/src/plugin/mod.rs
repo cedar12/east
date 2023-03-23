@@ -18,6 +18,7 @@ pub async fn init_plugin(){
     let dir=config::CONF.server.plugin.dir.clone();
     let mut pm=PM.lock().await;
     pm.init_plugin_dir(Path::new(dir.as_str())).await;
+    pm.init_web_run().await;
 }
 
 pub async fn database_plugin()->anyhow::Result<(Box<dyn DatabasePlugin>,PluginInfo)>{

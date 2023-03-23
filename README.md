@@ -26,6 +26,9 @@ server:
       url: ../plugin_sqlite/data.db
       username: root
       password: root
+    web:
+      # web插件绑定端口 默认 127.0.0.1:8088
+      bind: 127.0.0.1:8088
 agent:
   # agent连接的id
   test:
@@ -56,6 +59,11 @@ id: test
 
 ## 服务端插件
 服务端插件的作用是在不侵入自身代码的前提下，扩展服务端的能力
+
+* windows 插件使用dll
+* macos 插件使用dylib
+* linux 插件使用so
+
 > 插件定义[east_plugin](https://gitee.com/cedar12/east/tree/main/east_plugin)
 ### 插件安装
 将插件文件放入服务端所配置的插件目录，重启服务端即可
@@ -66,6 +74,6 @@ id: test
   可通过更换插件来实现数据从不同数据库中读写
 
   [east_sqlite](https://gitee.com/cedar12/east/tree/main/plugin_sqlite) sqlite数据库插件
-* web Web插件类型（暂未支持，后续支持）
+* web Web插件类型（依赖数据库插件）
 
   可实现不同的web界面

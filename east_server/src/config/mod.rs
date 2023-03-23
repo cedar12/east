@@ -3,7 +3,7 @@ use std::{sync::Arc, collections::HashMap};
 use schemars::schema::RootSchema;
 use serde::{de::DeserializeOwned, Serialize, Deserialize};
 
-use self::{server::{Server, Plugin, default_plugin, default_bind, default_database}, agent::Agent};
+use self::{server::{Server, Plugin, default_plugin, default_bind, default_database, default_web}, agent::Agent};
 
 
 pub mod server;
@@ -20,11 +20,16 @@ lazy_static!{
 pub struct GlobalConfig{
     #[serde(default = "default_server")]
     pub server:Server,
+    #[serde(default = "default_agent")]
     pub agent:HashMap<String,Vec<Agent>>,
 }
 
 fn default_server()->Server{
-    Server { bind: default_bind(),plugin:Plugin { dir: default_plugin(), database: default_database() }}
+    Server { bind: default_bind(),plugin:default_plugin()}
+}
+
+fn default_agent()->HashMap<String,Vec<Agent>>{
+    HashMap::new()
 }
 
 fn load_config<T>(path: &str) -> T where T: DeserializeOwned {

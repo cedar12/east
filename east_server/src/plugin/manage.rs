@@ -81,12 +81,38 @@ impl PluginManager {
                     pi,
                 );
                 self.database_config(namec.as_str(),pic.clone()).await;
-                self.web_run(namec.as_str(), pic.clone()).await;
+                
                 true
             }
             Err(_) => false,
         }
     }
+
+    pub async fn init_web_run(&self){
+      // self.web_run(namec.as_str(), pic.clone()).await;
+      let a=self.get_plugin_by_type(Type::DatabasePlugin);
+      if let Some((name,pi))=a{
+        let db=self.call_plugin_db(name).await;
+        if let Some(db_plugin)=db{
+          let web=self.get_plugin_by_type(Type::WebPlugin);
+          if let Some((name,pi))=web{
+            let web=self.call_plugin_web(name).await;
+            if let Some(web_plugin)=web{
+              let bind=config::CONF.server.plugin.web.bind.clone();
+              log::info!("Web插件[{}]开始启动监听->{}",name,bind);
+              tokio::spawn(async move {
+                web_plugin.run(bind, db_plugin).unwrap();
+              });
+              
+            }
+          }
+        }
+        
+      }
+      
+
+    }
+
 
     async fn database_config(&self,name:&str,pi:PluginInfo)->anyhow::Result<()>{
       if pi.plugin_type==Type::DatabasePlugin{
@@ -99,17 +125,17 @@ impl PluginManager {
       Ok(())
     }
 
-    async fn web_run(&self,name:&str,pi:PluginInfo)->anyhow::Result<()>{
-        if pi.plugin_type==Type::WebPlugin{
-            let p=self.call_plugin_web(name).await;
-            if let Some(p)=p{
-              tokio::spawn(async move {
-                p.run().unwrap();
-              });
-            }
-          }
-        Ok(())
-    }
+    // async fn web_run(&self,name:&str,pi:PluginInfo)->anyhow::Result<()>{
+    //     if pi.plugin_type==Type::WebPlugin{
+    //         let p=self.call_plugin_web(name).await;
+    //         if let Some(p)=p{
+    //           let h=tokio::spawn(async move {
+    //             p.run().unwrap();
+    //           });
+    //         }
+    //       }
+    //     Ok(())
+    // }
 
     pub fn get_plugin(&self, name: &str) -> Option<&PluginInfo> {
         self.plugins.get(name)

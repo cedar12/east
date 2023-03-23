@@ -1,7 +1,8 @@
-use actix_web::{rt::Runtime, HttpServer, App};
-use east_plugin::plugin::{Plugin, WebPlugin, Type};
+use actix_files::{Files, FilesService};
+use actix_web::{rt::Runtime, HttpServer, App,web};
+use east_plugin::plugin::{Plugin, WebPlugin,DatabasePlugin, Type};
 
-use crate::route::greet;
+use crate::route;
 
 
 
@@ -26,14 +27,18 @@ impl Plugin for ActixPlugin{
 }
 
 impl WebPlugin for ActixPlugin {
-    fn run(&self)->anyhow::Result<()> {
-        let rt = Runtime::new().unwrap();
-        let run=HttpServer::new(|| {
-            App::new().service(greet)
+    fn run(&self,bind:String,dp:Box<dyn DatabasePlugin>)->anyhow::Result<()> {
+        let rt = Runtime::new()?;
+        let dp=web::Data::new(dp);
+        let run=HttpServer::new(move|| {
+            App::new().app_data(dp.clone())
+            // .service(web::resource("/").route(web::get().to(route::index)))
+            .service(web::resource("/agent").route(web::get().to(route::agents)))
+            .service(Files::new("/","./static/").index_file("index.html"))
         })
-        .bind(("127.0.0.1", 8080)).unwrap()
+        .bind(bind)?
         .run();
-        rt.block_on(run).unwrap();
+        rt.block_on(run)?;
         Ok(())
     }
 }

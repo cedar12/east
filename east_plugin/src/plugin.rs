@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::{agent::Agent, proxy::Proxy};
 
 ///
@@ -64,7 +66,7 @@ pub trait DatabasePlugin:Plugin{
 }
 
 pub trait WebPlugin:Plugin{
-  fn run(&self)->anyhow::Result<()>;
+  fn run(&self,bind:String,dp:Box<dyn DatabasePlugin>)->anyhow::Result<()>;
 
 }
 
