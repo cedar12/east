@@ -67,6 +67,8 @@ id: test
 > 插件定义[east_plugin](https://gitee.com/cedar12/east/tree/main/east_plugin)
 ### 插件安装
 将插件文件放入服务端所配置的插件目录，重启服务端即可
+### 插件卸载
+将插件文件移除服务端所配置的插件目录，重启服务端即可
 ### 插件分类
 > 同类型插件不支持多个，暂定以下类型
 * database 数据库插件类型
