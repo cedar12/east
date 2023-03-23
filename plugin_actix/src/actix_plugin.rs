@@ -33,7 +33,9 @@ impl WebPlugin for ActixPlugin {
         let run=HttpServer::new(move|| {
             App::new().app_data(dp.clone())
             // .service(web::resource("/").route(web::get().to(route::index)))
-            .service(web::resource("/agent").route(web::get().to(route::agents)))
+            .service(route::agents)
+            .service(route::add_agent)
+            .service(route::remove_agent)
             .service(Files::new("/","./static/").index_file("index.html"))
         })
         .bind(bind)?

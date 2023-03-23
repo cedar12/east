@@ -778,6 +778,8 @@ dependencies = [
  "actix-web",
  "anyhow",
  "east_plugin",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

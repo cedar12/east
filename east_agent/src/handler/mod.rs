@@ -84,10 +84,22 @@ async fn proxy_open(msg:Msg,ctx: Context<Msg>){
   let addr=format!("{}:{}",host,port).to_string();
   let id=bf.read_u64_be();
   println!("fid->{},ip->{}",id,addr);
-  let stream=TcpStream::connect(addr).await.unwrap();
-  let addr=stream.peer_addr().unwrap();
-  println!("代理连接{}",addr);
-  Bootstrap::build(stream, addr, ProxyEncoder{}, ProxyDecoder{}, ProxyHandler{ctx: ctx.clone(),id:id}).run().await.unwrap();
+  let stream=TcpStream::connect(addr).await;
+  match stream{
+    Ok(stream)=>{
+      let addr=stream.peer_addr().unwrap();
+      println!("代理连接{}",addr);
+      Bootstrap::build(stream, addr, ProxyEncoder{}, ProxyDecoder{}, ProxyHandler{ctx: ctx.clone(),id:id}).run().await.unwrap();
+    },
+    Err(e)=>{
+      println!("{:?}",e);
+      let mut bf=ByteBuf::new_with_capacity(0);
+      bf.write_u64_be(id);
+      let msg=Msg::new(TypesEnum::ProxyClose, bf.available_bytes().to_vec());
+      ctx.write(msg).await;
+    }
+  }
+  
 }
 
 async fn proxy_forward(msg:Msg){
