@@ -80,7 +80,7 @@ impl Handler<Msg> for ServerHandler{
 
               },
               Err(_)=>{
-                log::warn!("无{}配置，认证不通过",s);
+                log::warn!("无{}配置，认证不通过 {}",s,ctx.addr());
                 ctx.close().await;
               }
             }

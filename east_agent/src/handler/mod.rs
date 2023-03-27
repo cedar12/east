@@ -14,7 +14,7 @@ pub struct AgentHandler {}
 #[async_trait::async_trait]
 impl Handler<Msg> for AgentHandler {
     async fn read(&self, ctx: &Context<Msg>, msg: Msg) {
-        println!("read len {:?}", msg.data.len());
+        // println!("read len {:?}", msg.data.len());
         match msg.msg_type{
           TypesEnum::Auth=>{
             let ctx=ctx.clone();
@@ -37,15 +37,15 @@ impl Handler<Msg> for AgentHandler {
             let id=bf.read_u64_be();
             // proxy::ProxyMap.lock().await.remove(&id);
             let map=proxy::ProxyMap.lock().await;
-            println!("agent close {} {:?} ",id, map);
+            // println!("agent close {} {:?} ",id, map);
             match map.get(&id){
               Some(ctx)=>{
                 ctx.close().await;
                 // proxy::ProxyMap.lock().await.remove(&id);
-                println!("agent close {} {:?} ",id, map);
+                log::info!("agent close {} ",id);
               }, 
               None=>{
-                println!("{} 不存在",id)
+                log::warn!("{} 不存在",id)
               }
             }
             
@@ -56,14 +56,14 @@ impl Handler<Msg> for AgentHandler {
         // ctx.write(m).await;
     }
     async fn active(&self, ctx: &Context<Msg>) {
-        println!("active {:?}", ctx.addr());
+        log::info!("已连接 {:?}", ctx.addr());
         let conf=Arc::clone(&config::CONF);
         let id=conf.id.clone();
         let msg=Msg::new(TypesEnum::Auth,id.as_bytes().to_vec());
         ctx.write(msg).await;
     }
     async fn close(&self, ctx: &Context<Msg>) {
-        println!("close {:?} ", ctx.addr());
+        log::info!("关闭 {:?} ", ctx.addr());
         let mut map=proxy::ProxyMap.lock().await;
         for (_,v) in map.iter(){
           v.close().await;
@@ -83,16 +83,16 @@ async fn proxy_open(msg:Msg,ctx: Context<Msg>){
   let port = bf.read_u16_be();
   let addr=format!("{}:{}",host,port).to_string();
   let id=bf.read_u64_be();
-  println!("fid->{},ip->{}",id,addr);
+  log::info!("fid->{},ip->{}",id,addr);
   let stream=TcpStream::connect(addr).await;
   match stream{
     Ok(stream)=>{
       let addr=stream.peer_addr().unwrap();
-      println!("代理连接{}",addr);
+      log::info!("代理连接{}",addr);
       Bootstrap::build(stream, addr, ProxyEncoder{}, ProxyDecoder{}, ProxyHandler{ctx: ctx.clone(),id:id}).run().await.unwrap();
     },
     Err(e)=>{
-      println!("{:?}",e);
+      log::error!("{:?}",e);
       let mut bf=ByteBuf::new_with_capacity(0);
       bf.write_u64_be(id);
       let msg=Msg::new(TypesEnum::ProxyClose, bf.available_bytes().to_vec());
@@ -108,13 +108,13 @@ async fn proxy_forward(msg:Msg){
   let id=bf.read_u64_be();
   let mut buf=vec![0u8;bf.readable_bytes()];
   bf.read_bytes(&mut buf);
-  println!("forward len {}:{} proxyMap {:?}",bytes.len(),buf.len(),proxy::ProxyMap.lock().await);
+  // println!("forward len {}:{} proxyMap {:?}",bytes.len(),buf.len(),proxy::ProxyMap.lock().await);
   match proxy::ProxyMap.lock().await.get(&id){
     Some(ctx)=>{
       ctx.write(buf.to_vec()).await;
     },
     None=>{
-      println!("无对应id连接{}",id);
+      log::warn!("无对应id连接{}",id);
     }
   };
 }

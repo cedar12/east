@@ -5,7 +5,7 @@ extern crate east_core;
 mod handler;
 mod proxy;
 mod config;
-
+mod log_conf;
 #[cfg(test)]
 mod tests;
 
@@ -18,6 +18,7 @@ use tokio::{io, net::TcpStream, time};
 
 #[tokio::main]
 async fn main() ->io::Result<()>{
+    log_conf::init();
     let conf=Arc::clone(&config::CONF);
     loop{
         let stream=TcpStream::connect(conf.server.clone()).await;
@@ -26,14 +27,14 @@ async fn main() ->io::Result<()>{
                 let addr=stream.peer_addr().unwrap();
                 let result=Bootstrap::build(stream, addr, MsgEncoder{}, MsgDecoder{}, AgentHandler{}).run().await;
                 if let Err(e)=result{
-                    println!("{:}",e);
+                    log::error!("{:}",e);
                 }
             },
             Err(e)=>{
-                println!("{:?}",e)
+                log::error!("{:?}",e)
             }
         }
-        println!("等待重连中");
+        log::info!("等待重连中");
         time::sleep(time::Duration::from_millis(3000)).await;
     }
 }

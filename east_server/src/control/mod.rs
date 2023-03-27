@@ -1,9 +1,9 @@
 use std::thread;
 
-use east_plugin::control::AgentControl;
+use east_plugin::control::{AgentControl, ProxyControl};
 use tokio::spawn;
 
-use crate::connection;
+use crate::{connection, proxy::Proxy};
 
 
 
@@ -31,5 +31,36 @@ impl AgentControl for AgentControlImpl{
       });
       jh.join().unwrap();
       
+    }
+}
+
+
+pub struct ProxyControlImpl{}
+
+impl ProxyControl for ProxyControlImpl{
+    fn start(&self,id:String,bind_port:u16) {
+      let rt=tokio::runtime::Runtime::new().unwrap();
+      rt.block_on(async move {
+        if let Some(conn)=connection::Conns.get(id.clone()).await{
+          let mut proxy=Proxy::new(bind_port);
+          conn.insert(bind_port,proxy.clone()).await;
+          if let Err(e)=proxy.listen().await{
+            log::error!("{:?}",e);
+            return
+          }
+          if let Err(e)=proxy.accept(id,conn.ctx().clone()).await{
+            log::error!("{:?}",e);
+          }
+        }
+      });
+    }
+
+    fn stop(&self,id:String,bind_port:u16) {
+      let rt=tokio::runtime::Runtime::new().unwrap();
+      rt.block_on(async move {
+        if let Some(conn)=connection::Conns.get(id.clone()).await{
+          conn.remove(bind_port).await;
+        }
+      });
     }
 }

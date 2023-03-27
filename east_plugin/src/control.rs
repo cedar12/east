@@ -2,9 +2,9 @@
 /// 代理转发控制
 pub trait ProxyControl: Send + Sync{
   /// 启动代理转发端口
-  fn start(&self,bind_port:u16);
+  fn start(&self,id:String,bind_port:u16);
   /// 停止代理转发端口
-  fn stop(&self,bind_port:u16);
+  fn stop(&self,id:String,bind_port:u16);
 }
 
 /// 代理端控制

@@ -90,7 +90,7 @@ impl Proxy{
                 
                 let (mut stream,addr)=ret.unwrap();
                 let proxy=plugin.get_proxy(bind_port);
-                log::info!("{:?}",proxy);
+                // log::info!("{:?}",proxy);
                 match proxy{
                   core::result::Result::Ok(proxy)=>{
                     let p=proxy.clone();
