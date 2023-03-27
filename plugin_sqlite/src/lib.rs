@@ -4,7 +4,7 @@ use east_plugin::plugin::{Plugin, DatabasePlugin};
 use sqlite_plugin::SqlitePlugin;
 
 extern crate east_plugin;
-mod sqlite_plugin;
+pub mod sqlite_plugin;
 mod db;
 
 mod tests;

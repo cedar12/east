@@ -21,6 +21,13 @@ create table if not exists proxy(
 );
 ";
 
+const USER_TABLE_SQL:&str="
+create table if not exists user(
+  username text primary key,
+  password text not null
+);
+";
+
 lazy_static!{
   pub static ref CONN:Arc<Mutex<Option<Connection>>>=Arc::new(Mutex::new(None));
 }
@@ -32,5 +39,6 @@ pub fn init(conf:DBConfig)->anyhow::Result<()>{
   let conn=c.insert(conn);
   conn.execute(AGENT_TABLE_SQL, ())?;
   conn.execute(PROXY_TABLE_SQL, ())?;
+  conn.execute(USER_TABLE_SQL, ())?;
   Ok(())
 }

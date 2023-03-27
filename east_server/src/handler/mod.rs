@@ -1,9 +1,7 @@
-use std::{sync::Arc, time::{SystemTime, UNIX_EPOCH}};
+use std::{sync::Arc, time::{SystemTime, UNIX_EPOCH}, collections::HashMap};
 
 use east_core::{handler::Handler, message::Msg, context::Context, types::TypesEnum, byte_buf::ByteBuf, bootstrap::Bootstrap};
 use async_trait::async_trait;
-use anyhow::Result;
-use east_plugin::plugin::Type;
 use tokio::{net::TcpStream, spawn, sync::Mutex};
 
 use crate::{connection, proxy::{Proxy, self, ProxyMsg, proxy_encoder::ProxyEncoder, proxy_decoder::ProxyDecoder, proxy_handler::ProxyHandler}, config, plugin};
@@ -11,6 +9,12 @@ use crate::{connection, proxy::{Proxy, self, ProxyMsg, proxy_encoder::ProxyEncod
 const TIME_KEY:&str="heartbeat_time";
 
 pub struct ServerHandler{
+}
+
+impl ServerHandler {
+    pub fn new()->Self{
+      ServerHandler { }
+    }
 }
 
 #[async_trait]
@@ -43,7 +47,7 @@ impl Handler<Msg> for ServerHandler{
                   }
                   None=>{
                     let conn=connection::Connection::new(ctx.clone(),id);
-                    connection::Conns.push(conn).await;
+                    connection::Conns.insert(id3.clone(),conn).await;
                     let msg=Msg::new(TypesEnum::Auth,vec![]);
                     ctx.write(msg).await;
                     for a in agent.proxy.iter(){
@@ -56,14 +60,18 @@ impl Handler<Msg> for ServerHandler{
                       ctx.set_attribute("id".into(), Box::new(id)).await;
                       let id=id3.clone();
                       spawn(async move{
-                        let mut proxy=Proxy::new(bind_port);
-                        if let Err(e)=proxy.listen().await{
-                          log::error!("{:?}",e);
-                          return
+                          if let Some(conn)=connection::Conns.get(id.clone()).await{
+                          let mut proxy=Proxy::new(bind_port);
+                          conn.insert(bind_port,proxy.clone()).await;
+                          if let Err(e)=proxy.listen().await{
+                            log::error!("{:?}",e);
+                            return
+                          }
+                          if let Err(e)=proxy.accept(id,c.clone()).await{
+                            log::error!("{:?}",e);
+                          }
                         }
-                        if let Err(e)=proxy.accept(id,c.clone()).await{
-                          log::error!("{:?}",e);
-                        }
+                        
                       });
                     }
                     
@@ -91,7 +99,7 @@ impl Handler<Msg> for ServerHandler{
                   }
                   None=>{
                     let conn=connection::Connection::new(ctx.clone(),id);
-                    connection::Conns.push(conn).await;
+                    connection::Conns.insert(id3.clone(),conn).await;
                     let msg=Msg::new(TypesEnum::Auth,vec![]);
                     ctx.write(msg).await;
                     for a in agents.iter(){
@@ -100,13 +108,16 @@ impl Handler<Msg> for ServerHandler{
                       let c=ctx.clone();
                       ctx.set_attribute("id".into(), Box::new(id3.clone())).await;
                       spawn(async move{
-                        let mut proxy=Proxy::new(bind_port);
-                        if let Err(e)=proxy.listen().await{
-                          log::error!("{:?}",e);
-                          return
-                        }
-                        if let Err(e)=proxy.accept(id3,c.clone()).await{
-                          log::error!("{:?}",e);
+                        if let Some(conn)=connection::Conns.get(id3.clone()).await{
+                          let mut proxy=Proxy::new(bind_port);
+                          conn.insert(bind_port,proxy.clone()).await;
+                          if let Err(e)=proxy.listen().await{
+                            log::error!("{:?}",e);
+                            return
+                          }
+                          if let Err(e)=proxy.accept(id3,c.clone()).await{
+                            log::error!("{:?}",e);
+                          }
                         }
                       });
                     }
@@ -198,17 +209,23 @@ impl Handler<Msg> for ServerHandler{
   }
   async fn close(&self,ctx:&Context<Msg>){
     log::info!("{:?} 断开",ctx.addr());
-    let proxy_attr=ctx.get_attribute(proxy::PROXY_KEY.into()).await;
-    let proxy=proxy_attr.lock().await;
-    if let Some(proxy)=proxy.downcast_ref::<Proxy>(){
-      proxy.close().await;
-    }
+    
+    
     let id_attr=ctx.get_attribute("id".into()).await;
     let id=id_attr.lock().await;
     if let Some(id)=id.downcast_ref::<String>(){
       proxy::remove(id).await;
+      match connection::Conns.get(id.clone()).await{
+        Some(c)=>{
+          c.remove_all().await;
+        }
+        None=>{
+          log::warn!("{}连接未获取到代理绑定端口",id)
+        }
+      }
+      connection::Conns.remove(id.clone()).await;
     }
     ctx.remove_attribute("id".into()).await;
-    connection::Conns.remove(ctx.clone()).await;
+    
   }
 }

@@ -1,5 +1,5 @@
 [package]
-name = "plugin_sqlite"
+name = "east_sqlite"
 version = "0.1.0"
 edition = "2021"
 

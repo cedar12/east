@@ -171,6 +171,94 @@ impl DatabasePlugin for SqlitePlugin {
         }
         Err(anyhow!(""))
     }
+
+    fn modify_agent(&self,agent:Agent)->anyhow::Result<()> {
+        let conn=CONN.lock().unwrap();
+        if let Some(conn)=conn.as_ref(){
+            let mut stmt = conn.prepare("update agent set name=? where agent_id=?")?;
+            stmt.execute((agent.name,agent.id))?;
+        }
+        Ok(())
+    }
+
+    fn get_proxys(&self,agent_id:String)->anyhow::Result<Vec<Proxy>> {
+        let conn=CONN.lock().unwrap();
+        let mut proxys=vec![];
+        if let Some(conn)=conn.as_ref(){
+            let mut stmt = conn.prepare("SELECT bind_port,target_host,target_port,enable,whitelist from proxy where agent_id=?")?;
+            let proxy_iter = stmt.query_map([agent_id], |row| {
+                let whiltelist:String=row.get(4).unwrap();
+                let ve:Vec<&str>=whiltelist.split(",").collect();
+                let mut v:Vec<String>=vec![];
+                if ve.len()>=1&&ve[0]!=""{
+                    v=ve.iter().map(|f|f.to_string()).collect();
+                }
+
+                Ok(Proxy {
+                    bind_port: row.get(0).unwrap(),
+                    target_host: row.get(1).unwrap(),
+                    target_port: row.get(2).unwrap(),
+                    enable: row.get(3).unwrap(),
+                    whitelist: v,
+                })
+            })?;
+            for proxy in proxy_iter{
+                let proxy=proxy?;
+                proxys.push(proxy);
+            }
+        }
+        Ok(proxys)
+    }
+
+    fn modify_proxy(&self,proxy:Proxy)->anyhow::Result<()> {
+        let conn=CONN.lock().unwrap();
+        if let Some(conn)=conn.as_ref(){
+            let mut stmt = conn.prepare("update proxy set target_host=?,target_port=?,enable=? where bind_port=?")?;
+            stmt.execute((proxy.target_host,proxy.target_port,proxy.enable,proxy.bind_port))?;
+        }
+        Ok(())
+    }
+
+    fn get_user(&self,username:String)->anyhow::Result<(String,String)> {
+        let conn=CONN.lock().unwrap();
+        if let Some(conn)=conn.as_ref(){
+            let mut stmt = conn.prepare("SELECT username,password from user where username=?")?;
+            let user_iter = stmt.query_map([username], |row| {
+                Ok((row.get(0).unwrap(),row.get(1).unwrap()))
+            })?;
+            for user in user_iter{
+                return Ok(user?)
+            }
+        }
+        Err(anyhow!(""))
+    }
+
+    fn add_user(&self,username:String,password:String)->anyhow::Result<()> {
+        let conn=CONN.lock().unwrap();
+        if let Some(conn)=conn.as_ref(){
+            let mut stmt = conn.prepare("insert into user values(?,?)")?;
+            stmt.execute((username,password))?;
+        }
+        Ok(())
+    }
+
+    fn remove_user(&self,username:String)->anyhow::Result<()> {
+        let conn=CONN.lock().unwrap();
+        if let Some(conn)=conn.as_ref(){
+            let mut stmt = conn.prepare("delete from user where username=?")?;
+            stmt.execute([username])?;
+        }
+        Ok(())
+    }
+
+    fn modify_user(&self,username:String,password:String)->anyhow::Result<()> {
+        let conn=CONN.lock().unwrap();
+        if let Some(conn)=conn.as_ref(){
+            let mut stmt = conn.prepare("update user set password=? where username=?")?;
+            stmt.execute((username,password))?;
+        }
+        Ok(())
+    }
 }
 impl Plugin for SqlitePlugin{
 

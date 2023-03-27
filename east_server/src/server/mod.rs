@@ -23,7 +23,7 @@ pub async fn run() -> Result<()> {
 }
 
 async fn process_socket(client:TcpStream,addr:SocketAddr){
-    if let Err(e)=Bootstrap::build(client,addr, MsgEncoder{}, MsgDecoder{}, ServerHandler{}).run().await{
+    if let Err(e)=Bootstrap::build(client,addr, MsgEncoder{}, MsgDecoder{}, ServerHandler::new()).run().await{
         // println!("{:?}",e);
         log::error!("{:?}",e);
     }

@@ -1,10 +1,15 @@
+
+// extern crate east_sqlite;
 use actix_plugin::ActixPlugin;
 use east_plugin::plugin::{Plugin, WebPlugin};
 
 
 mod actix_plugin;
 mod route;
+mod auth;
+mod user_data;
 
+// mod tests;
 
 #[no_mangle]
 pub extern "C" fn install() -> *mut dyn Plugin {

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::{agent::Agent, proxy::Proxy};
+use crate::{agent::Agent, proxy::Proxy, control::AgentControl};
 
 ///
 /// 插件信息
@@ -58,15 +58,23 @@ pub trait DatabasePlugin:Plugin{
   fn get_agent(&self,id:String)->anyhow::Result<Agent>;
   fn add_agent(&self,agent:Agent)->anyhow::Result<()>;
   fn remove_agent(&self,id:String)->anyhow::Result<()>;
+  fn modify_agent(&self,agent:Agent)->anyhow::Result<()>;
+  fn get_proxys(&self,agent_id:String)->anyhow::Result<Vec<Proxy>>;
   fn get_proxy(&self,bind_port:u16)->anyhow::Result<Proxy>;
   fn add_proxy(&self,agent_id:String,proxy:Proxy)->anyhow::Result<()>;
   fn remove_proxy(&self,bind_port:u16)->anyhow::Result<()>;
+  fn modify_proxy(&self,proxy:Proxy)->anyhow::Result<()>;
   fn set_proxy_enable(&self,bind_port:u16,enable:bool)->anyhow::Result<()>;
+
+  fn get_user(&self,username:String)->anyhow::Result<(String,String)>;
+  fn add_user(&self,username:String,password:String)->anyhow::Result<()>;
+  fn remove_user(&self,username:String)->anyhow::Result<()>;
+  fn modify_user(&self,username:String,password:String)->anyhow::Result<()>;
   
 }
 
 pub trait WebPlugin:Plugin{
-  fn run(&self,bind:String,dp:Box<dyn DatabasePlugin>)->anyhow::Result<()>;
+  fn run(&self,bind:String,dp:Box<dyn DatabasePlugin>,agent_control:Box<dyn AgentControl>)->anyhow::Result<()>;
 
 }
 

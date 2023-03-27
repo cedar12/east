@@ -15,6 +15,8 @@ mod config;
 
 mod plugin;
 
+mod control;
+
 mod tests;
 
 use log::LevelFilter;

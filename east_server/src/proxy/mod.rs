@@ -33,6 +33,12 @@ pub struct Proxy{
   c_tx:Arc<Mutex<Sender<()>>>,
 }
 
+impl std::fmt::Debug for Proxy{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Proxy").field("port", &self.port).finish()
+    }
+}
+
 impl Proxy{
   pub fn new(port:u16)->Self{
     let (tx,rv)=broadcast::channel::<()>(1);
@@ -43,6 +49,9 @@ impl Proxy{
       c_rv:Arc::new(Mutex::new(rv)),
       c_tx:Arc::new(Mutex::new(tx))
     }
+  }
+  pub fn bind_port(self)->u16{
+    self.port
   }
 
   pub async fn listen(&mut self)->Result<()>{
@@ -59,7 +68,7 @@ impl Proxy{
   
 
   pub async fn accept(&mut self,conn_id:String,ctx:Context<Msg>)->Result<()>{
-    ctx.set_attribute(PROXY_KEY.into(), Box::new(self.clone())).await;
+        
     let l=Arc::clone(&self.listen);
     let mut rv=self.c_rv.lock().await;
     let self_addr=self.addr.clone();
