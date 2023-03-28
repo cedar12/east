@@ -1,0 +1,42 @@
+.login-container{
+  background-color: #212c3f;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  .login-panel{
+    width:600px;
+    height: 300px;
+    display: flex;
+    justify-content: left;
+    align-items: center;
+    .panel-left{
+      width:290px;
+      height: 100%;
+      border-right: 1px solid rgb(43, 43, 43);
+    }
+    .panel-right{
+      width:350px;
+      padding: 20px;
+      box-sizing: border-box;
+      height: 100%;
+      display: flex;
+      justify-content: left;
+      align-items: center;
+      .t-form{
+        --td-text-color-primary:#ccc;
+        .t-input{
+          --td-bg-color-specialcomponent:#212c3f;
+          .t-input__inner::input-placeholder{
+            color: rgb(161, 161, 161);
+          }
+        }
+      }
+      
+    }
+    
+    
+  }
+}

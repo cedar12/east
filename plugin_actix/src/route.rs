@@ -10,9 +10,28 @@ use serde::{Serialize, Deserialize};
 
 use crate::auth;
 use crate::user_data::UserData;
+use rust_embed::RustEmbed;
+use mime_guess::from_path;
 
+#[derive(RustEmbed)]
+#[folder = "static/"]
+struct Asset;
+
+fn handle_embedded_file(path: &str) -> HttpResponse {
+  match Asset::get(path) {
+    Some(content) => HttpResponse::Ok()
+      .content_type(from_path(path).first_or_octet_stream().as_ref())
+      .body(content.data.into_owned()),
+    None => HttpResponse::NotFound().body("404 Not Found"),
+  }
+}
+#[get("/")]
 pub async fn index()->impl Responder{
-    format!("east web")
+    handle_embedded_file("index.html")
+}
+#[get("/assets/{_:.*}")]
+pub async fn dist(path: web::Path<String>) -> impl Responder {
+  handle_embedded_file(format!("assets/{}",path.as_str()).as_str())
 }
 
 #[get("/agent")]
@@ -20,7 +39,7 @@ pub async fn agents(user: UserData,data: web::Data<Box<dyn DatabasePlugin>>) -> 
     let agents=data.get_agents().unwrap();
     HttpResponse::Ok()
         .content_type("application/json")
-        .json(agents)
+        .json(Resp{code:2000,info:"成功".into(),data:agents})
 }
 
 #[post("/agent/add")]
@@ -62,7 +81,7 @@ pub async fn proxys(user: UserData,agent_id:web::Path<String>,data: web::Data<Bo
     let proxy=data.get_proxys(agent_id.clone()).unwrap();
     HttpResponse::Ok()
         .content_type("application/json")
-        .json(proxy)
+        .json(Resp{code:2000,info:"成功".into(),data:proxy})
 }
 
 #[post("/proxy/add/{agent_id}")]

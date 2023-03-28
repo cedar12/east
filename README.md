@@ -82,5 +82,7 @@ id: test
 
   可实现不同的web界面
 
-### 下载
-* [0.0.1](https://gitee.com/cedar12/east/releases/tag/0.0.1)
+### 下载使用
+* [east-x86_64-pc-windows_0.0.1](https://gitee.com/cedar12/east/releases/tag/0.0.1)
+
+下载解压之后分为server（服务端）、agent（代理端），进入服务端目录或代理端目录配置conf.yml文件双击运行exe即可

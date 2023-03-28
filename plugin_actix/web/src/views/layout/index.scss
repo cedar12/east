@@ -1,0 +1,24 @@
+.layout-container{
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  $headerHeight:56px;
+  .t-layout__header{
+    border-bottom: 1px solid #ccc;
+  }
+  .menu-conatiner{
+    height:calc(100vh - $headerHeight);
+    border-right:1px solid #ccc;
+    .t-menu.t-menu--scroll{
+      height: calc(100vh - $headerHeight - 49px);
+    }
+  }
+  .content-container{
+    box-sizing: border-box;
+    padding: 12px;
+  }
+  .collapsed{
+    width:64px !important;
+  }
+  
+}
