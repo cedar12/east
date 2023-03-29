@@ -37,17 +37,14 @@ impl AgentControl for AgentControlImpl{
 
     fn close(&self,agent_id:String) {
       let rt=tokio::runtime::Runtime::new().unwrap();
-      let jh=thread::spawn(move ||{
-        rt.block_on(async move{
-          let id=agent_id.clone();
-          let conn=connection::Conns.get(agent_id).await;
-          if let Some(conn)=conn{
-            log::info!("关闭代理端->{}",id);
-            conn.ctx().close().await;
-          }
-        });
+      rt.block_on(async move{
+        let id=agent_id.clone();
+        let conn=connection::Conns.get(agent_id).await;
+        if let Some(conn)=conn{
+          log::info!("关闭代理端->{}",id);
+          conn.ctx().close().await;
+        }
       });
-      jh.join().unwrap();
       
     }
 }
@@ -64,7 +61,7 @@ impl ProxyControlImpl{
 impl ProxyControl for ProxyControlImpl{
     fn start(&self,id:String,bind_port:u16) {
       let rt=tokio::runtime::Runtime::new().unwrap();
-      thread::spawn(move ||{
+      spawn(async move {
         rt.block_on(async move {
           if let Some(conn)=connection::Conns.get(id.clone()).await{
             let mut proxy=Proxy::new(bind_port);

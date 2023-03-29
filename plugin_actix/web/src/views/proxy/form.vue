@@ -49,7 +49,7 @@ const props=defineProps({
 const state=reactive({
   visibleModal:false,
   formData:{
-    agent_idid:'',
+    agent_id:'',
     bind_port:20000,
     target_host:'127.0.0.1',
     target_port:8080,
@@ -61,7 +61,7 @@ const state=reactive({
 
 const onConfirm=()=>{
   emit('update:modelValue',false);
-  add({...state.formData,whitelist:state.formData.whitelist.split('\n')}).then(res=>{
+  add(state.formData.agent_id,{...state.formData,whitelist:state.formData.whitelist.split('\n')}).then(res=>{
     MessagePlugin.success(res.info);
   })
 }

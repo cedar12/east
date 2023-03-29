@@ -11,7 +11,7 @@ import request from './request'
  * @returns 
  */
  export const add=(agentId,data)=>{
-  if(data.whitelist.length==1&&data.whitelist[0].trim()===''){
+  if(data.whitelist.length===1&&data.whitelist[0].trim()===''){
     data.whitelist=[];
   }
   return request({

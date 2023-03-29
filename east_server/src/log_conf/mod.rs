@@ -12,7 +12,9 @@ use tokio::spawn;
 
 const PATTERN_ENCODER: &str = "[EAST] {d(%Y-%m-%d %H:%M:%S)} - {l} -{t} - {m}{n}";
 const DATETIME_FORMAT: &str = "%Y%m%d";
+// const DATETIME_FORMAT: &str = "%Y%m%d%H%M%S";
 const CRON: &str = "0 0 0 * * ?";
+// const CRON: &str = "0/10 * * * * ?";
 
 fn get_log_config() -> Config {
     let now = Local::now().format(DATETIME_FORMAT);
@@ -69,7 +71,6 @@ struct LogJob {
 
 impl Job for LogJob {
     fn run(&mut self) {
-        let config = get_log_config();
-        self.handle.set_config(config);
+        self.handle.set_config(get_log_config());
     }
 }
