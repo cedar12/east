@@ -19,3 +19,5 @@ log/
 *.exe
 
 node_modules/
+
+plugin_actix/static/

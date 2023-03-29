@@ -8,6 +8,7 @@ mod actix_plugin;
 mod route;
 mod auth;
 mod user_data;
+mod model;
 
 // mod tests;
 

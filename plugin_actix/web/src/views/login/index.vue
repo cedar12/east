@@ -2,10 +2,18 @@
   <div class="login-container">
     <div class="login-panel">
       <div class="panel-left">
-        <span>EAST</span>
+        <svg xmlns="http://www.w3.org/2000/svg" version="1.1" height="60" width="60">
+            <circle cx="30" cy="30" r="20"  fill="#ef9621" >
+              <animate attributeName="cy" from="90" to="50" dur="1s"  />
+          </circle>
+          <rect width="200" height="20" y="50"
+          style="fill:#25abf0;"/>
+          </svg> 
+        <span class="title">East</span>
+        
       </div>
       <div class="panel-right">
-        <t-form ref="form" :data="formData" :colon="true" :label-width="0" @reset="onReset" @submit="onSubmit">
+        <t-form ref="form" :rules="rules" :data="formData" :colon="true" :label-width="0" @reset="onReset" @submit="onSubmit">
           <t-form-item name="username">
             <t-input v-model="formData.username" clearable placeholder="请输入用户名">
               <template #prefix-icon>
@@ -45,6 +53,17 @@ const formData=reactive({
     password:'',
 })
 
+const rules = {
+  username: [
+    { required: true, message: '用户名必填', type: 'error', trigger: 'blur' },
+    { required: true, message: '用户名必填', type: 'error', trigger: 'change' },
+    { whitespace: true, message: '用户名不能为空' },
+    { min: 3, message: '输入用户名字符应在3到12之间', type: 'error', trigger: 'blur' },
+    { max: 16, message: '输入用户名字符应在3到16之间', type: 'error', trigger: 'blur' },
+  ],
+  password: [{ required: true, message: '密码必填', type: 'error' }],
+};
+
 const onReset = () => {
   formData.username='';
   formData.password='';
@@ -58,6 +77,8 @@ const onSubmit = ({ validateResult, firstError }) => {
       localStorage.setItem('east-token',res.data);
       MessagePlugin.success('登录成功');
       router.push({path:'/'})
+    }).catch(e=>{
+      formData.password='';
     });
     
   } else {

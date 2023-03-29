@@ -92,7 +92,7 @@ impl Proxy{
                 let proxy=plugin.get_proxy(bind_port);
                 // log::info!("{:?}",proxy);
                 match proxy{
-                  core::result::Result::Ok(proxy)=>{
+                  core::result::Result::Ok((_,proxy))=>{
                     let p=proxy.clone();
                     if !use_plugin_match(p,addr.to_string()){
                       log::warn!("IP->{:?},不在白名单列表内,阻止连接",addr);

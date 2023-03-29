@@ -2,7 +2,7 @@ use std::{sync::Mutex, collections::HashMap};
 
 use actix_files::{Files};
 use actix_web::{rt::Runtime, HttpServer, App,web};
-use east_plugin::{plugin::{Plugin, WebPlugin,DatabasePlugin, Type}, control::AgentControl};
+use east_plugin::{plugin::{Plugin, WebPlugin,DatabasePlugin, Type}, control::{AgentControl, ProxyControl}};
 
 
 use crate::route;
@@ -29,15 +29,17 @@ impl Plugin for ActixPlugin{
 }
 
 impl WebPlugin for ActixPlugin {
-    fn run(&self,bind:String,dp:Box<dyn DatabasePlugin>,ac:Box<dyn AgentControl>)->anyhow::Result<()> {
+    fn run(&self,bind:String,dp:Box<dyn DatabasePlugin>,ac:Box<dyn AgentControl>,pc:Box<dyn ProxyControl>)->anyhow::Result<()> {
         let rt = Runtime::new()?;
         let dp=web::Data::new(dp);
         let ac=web::Data::new(ac);
+        let pc=web::Data::new(pc);
         let locked_store=web::Data::new(Mutex::new(HashMap::<String,u64>::new()));
         
         let run=HttpServer::new(move|| {
             App::new().app_data(dp.clone())
             .app_data(ac.clone())
+            .app_data(pc.clone())
             .app_data(locked_store.clone())
             // .service(web::resource("/").route(web::get().to(route::index)))
             .service(web::scope("/api")

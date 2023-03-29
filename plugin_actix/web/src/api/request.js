@@ -20,7 +20,7 @@ instance.interceptors.request.use(function (config) {
 });
  
 instance.interceptors.response.use(function (response) {
-  console.log(response);
+  // console.log(response);
   if(response.data.code!=2000){
     MessagePlugin.error(response.data.info);
     return Promise.reject(new Error(response.data.info))

@@ -10,7 +10,7 @@ const routes=[
   {
     path:'/',
     name:'layout',
-    // redirect:'/dashboard',
+    redirect:'/dashboard',
     component:()=>import('@/views/layout/index.vue'),
     children:[
       {
@@ -30,13 +30,18 @@ const routes=[
           icon:'server'
         },
         component:()=>import('@/views/agent/index.vue')
+      },
+      {
+        path:'/proxy',
+        name:'proxy',
+        meta:{
+          title:'转发列表',
+          icon:'share'
+        },
+        component:()=>import('@/views/proxy/index.vue')
       }
     ]
   },
-  {
-    path:'/',
-    redirect:'/dashborad'
-  }
 ]
 
 export default createRouter({

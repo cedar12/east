@@ -1,6 +1,5 @@
-use std::sync::Arc;
 
-use crate::{agent::Agent, proxy::Proxy, control::AgentControl};
+use crate::{agent::Agent, proxy::Proxy, control::{AgentControl, ProxyControl}};
 
 ///
 /// 插件信息
@@ -60,7 +59,7 @@ pub trait DatabasePlugin:Plugin{
   fn remove_agent(&self,id:String)->anyhow::Result<()>;
   fn modify_agent(&self,agent:Agent)->anyhow::Result<()>;
   fn get_proxys(&self,agent_id:String)->anyhow::Result<Vec<Proxy>>;
-  fn get_proxy(&self,bind_port:u16)->anyhow::Result<Proxy>;
+  fn get_proxy(&self,bind_port:u16)->anyhow::Result<(String,Proxy)>;
   fn add_proxy(&self,agent_id:String,proxy:Proxy)->anyhow::Result<()>;
   fn remove_proxy(&self,bind_port:u16)->anyhow::Result<()>;
   fn modify_proxy(&self,proxy:Proxy)->anyhow::Result<()>;
@@ -74,8 +73,7 @@ pub trait DatabasePlugin:Plugin{
 }
 
 pub trait WebPlugin:Plugin{
-  fn run(&self,bind:String,dp:Box<dyn DatabasePlugin>,agent_control:Box<dyn AgentControl>)->anyhow::Result<()>;
-
+  fn run(&self,bind:String,dp:Box<dyn DatabasePlugin>,agent_control:Box<dyn AgentControl>,proxy_control:Box<dyn ProxyControl>)->anyhow::Result<()>;
 }
 
 #[derive(Debug,Clone,PartialEq, Eq)]

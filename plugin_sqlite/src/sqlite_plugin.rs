@@ -144,29 +144,35 @@ impl DatabasePlugin for SqlitePlugin {
         Err(anyhow!(""))
     }
 
-    fn get_proxy(&self,bind_port:u16)->anyhow::Result<Proxy> {
+    fn get_proxy(&self,bind_port:u16)->anyhow::Result<(String,Proxy)> {
         let conn=CONN.lock().unwrap();
         if let Some(conn)=conn.as_ref(){
-            let mut stmt = conn.prepare("SELECT bind_port,target_host,target_port,enable,whitelist from proxy where bind_port=?")?;
+            let mut stmt = conn.prepare("SELECT agent_id,bind_port,target_host,target_port,enable,whitelist from proxy where bind_port=?")?;
             let proxy_iter = stmt.query_map([bind_port], |row| {
-                let whiltelist:String=row.get(4).unwrap();
+                let whiltelist:String=row.get(5).unwrap();
                 let ve:Vec<&str>=whiltelist.split(",").collect();
                 let mut v:Vec<String>=vec![];
                 if ve.len()>=1&&ve[0]!=""{
                     v=ve.iter().map(|f|f.to_string()).collect();
                 }
-
-                Ok(Proxy {
-                    bind_port: row.get(0).unwrap(),
-                    target_host: row.get(1).unwrap(),
-                    target_port: row.get(2).unwrap(),
-                    enable: row.get(3).unwrap(),
-                    whitelist: v,
-                })
+                Ok((
+                    row.get(0).unwrap(),
+                    row.get(1).unwrap(),
+                    row.get(2).unwrap(),
+                    row.get(3).unwrap(),
+                    row.get(4).unwrap(),
+                    v,
+                ))
             })?;
             for proxy in proxy_iter{
                 let proxy=proxy?;
-                return Ok(proxy)
+                return Ok((proxy.0,Proxy{
+                    bind_port: proxy.1,
+                    target_host: proxy.2,
+                    target_port: proxy.3,
+                    enable: proxy.4,
+                    whitelist: proxy.5,
+                }))
             }
         }
         Err(anyhow!(""))

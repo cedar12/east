@@ -7,7 +7,7 @@ use std::rc::Rc;
 use std::{collections::HashMap, sync::Arc};
 
 use crate::config;
-use crate::control::AgentControlImpl;
+use crate::control::{AgentControlImpl, ProxyControlImpl};
 
 #[cfg(target_os = "windows")]
 const PLUGIN_SUFFIX: &str = "dll";
@@ -102,7 +102,7 @@ impl PluginManager {
               let bind=config::CONF.server.plugin.web.bind.clone();
               log::info!("Web插件[{}]开始启动监听->{}",name,bind);
               tokio::spawn(async move {
-                web_plugin.run(bind, db_plugin,Box::new(AgentControlImpl::new())).unwrap();
+                web_plugin.run(bind, db_plugin,Box::new(AgentControlImpl::new()),Box::new(ProxyControlImpl::new())).unwrap();
               });
               
             }

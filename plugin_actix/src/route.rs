@@ -3,11 +3,12 @@ use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use actix_web::{web, Responder, get,HttpRequest, HttpResponse, Error, post};
-use east_plugin::control::AgentControl;
+use east_plugin::control::{AgentControl, ProxyControl};
 use east_plugin::{plugin::DatabasePlugin, proxy::Proxy};
 use east_plugin::agent::Agent;
 use serde::{Serialize, Deserialize};
 
+use crate::model::agent::AgentModel;
 use crate::auth;
 use crate::user_data::UserData;
 use rust_embed::RustEmbed;
@@ -35,11 +36,20 @@ pub async fn dist(path: web::Path<String>) -> impl Responder {
 }
 
 #[get("/agent")]
-pub async fn agents(user: UserData,data: web::Data<Box<dyn DatabasePlugin>>) -> impl Responder {
+pub async fn agents(user: UserData,data: web::Data<Box<dyn DatabasePlugin>>,ac: web::Data<Box<dyn AgentControl>>) -> impl Responder {
     let agents=data.get_agents().unwrap();
+    let mut results=vec![];
+    for a in agents.iter(){
+        results.push(AgentModel{
+            id:a.id.clone(),
+            name:a.name.clone(),
+            is_online:ac.clone().is_online(a.id.clone()),
+            proxy:a.proxy.clone(),
+        })
+    }
     HttpResponse::Ok()
         .content_type("application/json")
-        .json(Resp{code:2000,info:"成功".into(),data:agents})
+        .json(Resp{code:2000,info:"成功".into(),data:results})
 }
 
 #[post("/agent/add")]
@@ -100,29 +110,59 @@ pub async fn add_proxy(user: UserData,agent_id:web::Path<String>,proxy:web::Json
 #[get("/proxy/remove/{bind_port}")]
 pub async fn remove_proxy(user: UserData,bind_port:web::Path<u16>,data: web::Data<Box<dyn DatabasePlugin>>) -> impl Responder {
     let bind_port=bind_port.into_inner();
-    let result=data.remove_proxy(bind_port);
+    let result=data.get_proxy(bind_port);
     match result{
-        Ok(())=>HttpResponse::Ok()
-        .content_type("application/json")
-        .json(Resp{code:2000,info:"成功".into(),data:()}),
+        Ok((_,proxy))=>{
+            if proxy.enable{
+                return HttpResponse::Ok().json(Resp{code:40001,info:"只能移除已禁用的代理转发".into(),data:()})
+            }
+            let result=data.remove_proxy(bind_port);
+            match result{
+                Ok(())=>{
+                    HttpResponse::Ok()
+                .content_type("application/json")
+                .json(Resp{code:2000,info:"成功".into(),data:()})},
+                Err(e)=>HttpResponse::Ok()
+                .content_type("application/json")
+                .json(Resp{code:4000,info:format!("{:?}",e),data:()})
+            }
+        },
         Err(e)=>HttpResponse::Ok()
         .content_type("application/json")
-        .json(Resp{code:4000,info:format!("{:?}",e),data:()})
+        .json(Resp{code:4000,info:format!("不存在的代理{:?}",e),data:()})
     }
+    
     
 }
 
 #[post("/proxy/modify")]
-pub async fn modify_proxy(user: UserData,proxy:web::Json<Proxy>,data: web::Data<Box<dyn DatabasePlugin>>) -> impl Responder {
-    let result=data.modify_proxy(proxy.clone());
+pub async fn modify_proxy(user: UserData,proxy:web::Json<Proxy>,data: web::Data<Box<dyn DatabasePlugin>>,pc: web::Data<Box<dyn ProxyControl>>) -> impl Responder {
+    let bind_port=proxy.clone().bind_port;
+    let result=data.get_proxy(bind_port);
     match result{
-        Ok(())=>HttpResponse::Ok()
-        .content_type("application/json")
-        .json(Resp{code:2000,info:"成功".into(),data:()}),
+        Ok((agent_id,proxy_old))=>{
+            let result=data.modify_proxy(proxy.clone());
+            match result{
+                Ok(())=>{
+                    if proxy_old.enable==true&&proxy.clone().enable==false{
+                        pc.stop(agent_id, bind_port);
+                    }else if proxy_old.enable==false&&proxy.clone().enable==true{
+                        pc.start(agent_id, bind_port);
+                    }
+                    HttpResponse::Ok()
+                .content_type("application/json")
+                .json(Resp{code:2000,info:"成功".into(),data:()})
+                },
+                Err(e)=>HttpResponse::Ok()
+                .content_type("application/json")
+                .json(Resp{code:4000,info:format!("{:?}",e),data:()})
+            }
+        },
         Err(e)=>HttpResponse::Ok()
         .content_type("application/json")
-        .json(Resp{code:4000,info:format!("{:?}",e),data:()})
+        .json(Resp{code:4000,info:format!("不存在的代理{:?}",e),data:()})
     }
+    
     
 }
 

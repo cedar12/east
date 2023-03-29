@@ -3,8 +3,14 @@
   height: 100vh;
   overflow: hidden;
   $headerHeight:56px;
+  $collapsedWidth: 64px;
   .t-layout__header{
     border-bottom: 1px solid #ccc;
+    .system-title{
+      font-weight: bold;
+      font-size: 22px;
+      color: rgb(133, 133, 133);
+    }
   }
   .menu-conatiner{
     height:calc(100vh - $headerHeight);
@@ -16,9 +22,13 @@
   .content-container{
     box-sizing: border-box;
     padding: 12px;
+    width:calc(100vw - 232px);
+    &.collapsed{
+      width: calc(100vw - $collapsedWidth) !important;
+    }
   }
   .collapsed{
-    width:64px !important;
+    width:$collapsedWidth !important;
   }
   
 }

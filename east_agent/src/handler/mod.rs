@@ -89,7 +89,14 @@ async fn proxy_open(msg:Msg,ctx: Context<Msg>){
     Ok(stream)=>{
       let addr=stream.peer_addr().unwrap();
       log::info!("代理连接{}",addr);
-      Bootstrap::build(stream, addr, ProxyEncoder{}, ProxyDecoder{}, ProxyHandler{ctx: ctx.clone(),id:id}).run().await.unwrap();
+      let result=Bootstrap::build(stream, addr, ProxyEncoder{}, ProxyDecoder{}, ProxyHandler{ctx: ctx.clone(),id:id}).run().await;
+      if let Err(e)=result{
+        log::error!("{:?}",e);
+        let mut bf=ByteBuf::new_with_capacity(0);
+        bf.write_u64_be(id);
+        let msg=Msg::new(TypesEnum::ProxyClose, bf.available_bytes().to_vec());
+        ctx.write(msg).await;
+      }
     },
     Err(e)=>{
       log::error!("{:?}",e);

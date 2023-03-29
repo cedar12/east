@@ -19,16 +19,26 @@ import {reactive,watch,onMounted} from 'vue'
 import {agents,remove} from '@/api/agent'
 import AgentForm from './form.vue'
 import { MessagePlugin } from 'tdesign-vue-next';
+import './index.scss'
+
 const columns=[
 { colKey: 'id', title: 'ID', width: '150' },
 { colKey: 'name', title: '代理端' },
+{
+    title: '是否在线',
+    width:'150',
+    colKey: 'operation',
+    cell: (h, { row }) => (
+      row.is_online?<t-tag theme="success">在线</t-tag>:<t-tag theme="danger">离线</t-tag>
+    ),
+  },
 {
     title: '操作',
     width:'150',
     colKey: 'operation',
     cell: (h, { row }) => (
       <t-popconfirm content="确认删除吗" theme="danger" onConfirm={()=>{removeAgent(row)}}>
-          <t-button theme="danger">移除代理端</t-button>
+          <t-button theme="danger">移除</t-button>
       </t-popconfirm>
     ),
   },
