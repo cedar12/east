@@ -27,12 +27,7 @@ pub struct PluginInfo {
 
 impl std::fmt::Debug for PluginInfo {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("PluginInfo")
-            .field("info", &self.info)
-            .field("version", &self.version)
-            .field("author", &self.author)
-            .field("plugin_type", &self.plugin_type)
-            .finish()
+        f.write_str(format!("\n{:=<40}\ninfo: {}\ntype: {:?}\nversion: {}\nauthor: {}\n{:=<40}","=",self.info,self.plugin_type,self.version,self.author,"=").as_str())
     }
 }
 
@@ -74,7 +69,7 @@ impl PluginManager {
                 let plugin = unsafe { Box::from_raw(plugin_create()) };
                 let pi = PluginInfo::new(plugin, lib);
                 let name=String::from(path.file_stem().unwrap().to_str().unwrap());
-                log::info!("加载插件->{}:{:?}",name,pi);
+                log::info!("加载插件->{}{:?}",name,pi);
                 let namec=name.clone();
                 let pic=pi.clone();
                 self.plugins.insert(

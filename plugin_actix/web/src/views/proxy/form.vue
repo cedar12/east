@@ -19,7 +19,7 @@
             <t-input placeholder="请输入内容"  v-model="state.formData.target_host"/>
           </t-form-item>
           <t-form-item label="目标端口" name="target_port">
-            <t-input-number placeholder="请输入内容" :max="65536" :min="1"  v-model="state.formData.target_port"/>
+            <t-input-number placeholder="请输入内容" theme="normal" :max="65536" :min="1"  v-model="state.formData.target_port"/>
           </t-form-item>
           <t-form-item label="白名单" name="whitelist">
             <t-textarea placeholder="请输入内容"  v-model="state.formData.whitelist" :autosize="{ minRows: 5, maxRows: 5 }"/>
@@ -60,8 +60,9 @@ const state=reactive({
 
 
 const onConfirm=()=>{
-  emit('update:modelValue',false);
+  
   add(state.formData.agent_id,{...state.formData,whitelist:state.formData.whitelist.split('\n')}).then(res=>{
+    emit('update:modelValue',false);
     MessagePlugin.success(res.info);
   })
 }

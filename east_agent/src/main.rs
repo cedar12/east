@@ -25,7 +25,7 @@ async fn main() ->io::Result<()>{
         match stream{
             Ok(stream)=>{
                 let addr=stream.peer_addr().unwrap();
-                let result=Bootstrap::build(stream, addr, MsgEncoder{}, MsgDecoder{}, AgentHandler{}).run().await;
+                let result=Bootstrap::build(stream, addr, MsgEncoder{}, MsgDecoder{}, AgentHandler::new()).run().await;
                 if let Err(e)=result{
                     log::error!("{:}",e);
                 }

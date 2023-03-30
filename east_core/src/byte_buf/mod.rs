@@ -14,7 +14,7 @@ pub mod slice_util;
 
 const CHUNK_SIZE: usize = 1024;
 
-const MAX_SIZE_DRAIN:usize=1024*128;
+const MAX_SIZE_DRAIN:usize=1024*64;
 
 pub type ByteResult<T> = Result<T, ByteBufError>;
 

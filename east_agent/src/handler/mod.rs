@@ -1,7 +1,7 @@
 use std::{sync::Arc};
 
 use east_core::{handler::Handler, message::Msg, context::Context, types::TypesEnum, byte_buf::ByteBuf, bootstrap::Bootstrap};
-use tokio::{net::TcpStream, spawn, time};
+use tokio::{net::TcpStream, spawn, time, task::JoinHandle, sync::{broadcast::{Sender,Receiver}, self}};
 
 use crate::{proxy::{proxy_encoder::ProxyEncoder, proxy_decoder::ProxyDecoder, proxy_handler::ProxyHandler, self}, config};
 
@@ -9,7 +9,17 @@ lazy_static!{
   pub static ref CTX:Option<Context<Msg>>=None;
 }
 
-pub struct AgentHandler {}
+pub struct AgentHandler {
+  tx:Sender<()>,
+  rv:Receiver<()>
+}
+
+impl AgentHandler{
+  pub fn new()->Self{
+    let (tx,rv)=sync::broadcast::channel(1);
+    AgentHandler { tx: tx, rv: rv }
+  }
+}
 
 #[async_trait::async_trait]
 impl Handler<Msg> for AgentHandler {
@@ -17,10 +27,17 @@ impl Handler<Msg> for AgentHandler {
         // println!("read len {:?}", msg.data.len());
         match msg.msg_type{
           TypesEnum::Auth=>{
+            log::info!("启动发送心跳线程");
             let ctx=ctx.clone();
+            let mut sub=self.tx.subscribe();
             spawn(async move{
               loop {
                   time::sleep(time::Duration::from_millis(5000)).await;
+                  let result=sub.try_recv();
+                  if result.is_ok(){
+                    log::info!("退出发送心跳线程");
+                    return
+                  }
                   let msg=Msg::new(TypesEnum::Heartbeat, vec![]);
                   ctx.write(msg).await;
               }
@@ -64,6 +81,7 @@ impl Handler<Msg> for AgentHandler {
     }
     async fn close(&self, ctx: &Context<Msg>) {
         log::info!("关闭 {:?} ", ctx.addr());
+        let _=self.tx.send(());
         let mut map=proxy::ProxyMap.lock().await;
         for (_,v) in map.iter(){
           v.close().await;

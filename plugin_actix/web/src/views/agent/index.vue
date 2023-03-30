@@ -1,5 +1,6 @@
 <template>
   <div class="agent-container">
+    <t-space direction="vertical">
     <t-button @click="state.visible=true">新增</t-button>
   <t-base-table
   bordered
@@ -11,6 +12,7 @@
         :data="state.data"
         :columns="columns"
       ></t-base-table>
+    </t-space>
       <AgentForm v-model="state.visible"/>
     </div>
 </template>
@@ -49,8 +51,8 @@ const state=reactive({
   visible:false,
 })
 
-watch(()=>state.visible,()=>{
-  loadData();
+watch(()=>state.visible,(n)=>{
+  if(n===false)loadData();
 })
 
 const loadData=()=>{

@@ -21,3 +21,10 @@ log/
 node_modules/
 
 plugin_actix/static/
+
+
+output/
+*.bat
+*.ps1
+*.sh
+*.zip

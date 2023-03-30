@@ -1,4 +1,4 @@
-use std::{sync::Arc, time::{SystemTime, UNIX_EPOCH}, collections::HashMap};
+use std::{sync::Arc, time::{SystemTime, UNIX_EPOCH}};
 
 use east_core::{handler::Handler, message::Msg, context::Context, types::TypesEnum, byte_buf::ByteBuf, bootstrap::Bootstrap};
 use async_trait::async_trait;
@@ -6,7 +6,10 @@ use tokio::{net::TcpStream, spawn, sync::Mutex};
 
 use crate::{connection, proxy::{Proxy, self, ProxyMsg, proxy_encoder::ProxyEncoder, proxy_decoder::ProxyDecoder, proxy_handler::ProxyHandler}, config, plugin};
 
+
 const TIME_KEY:&str="heartbeat_time";
+
+pub const CONN_TIME_KEY:&str="conn_time";
 
 pub struct ServerHandler{
 }
@@ -20,7 +23,7 @@ impl ServerHandler {
 #[async_trait]
 impl Handler<Msg> for ServerHandler{
   async fn active(&self,ctx:&Context<Msg>){
-    log::info!("{} 已连接上",ctx.addr());
+    log::info!("{} 尝试连接",ctx.addr());
   }
   async fn read(&self,ctx:&Context<Msg>,msg:Msg){
 
@@ -197,23 +200,21 @@ impl Handler<Msg> for ServerHandler{
       TypesEnum::Heartbeat=>{
         match SystemTime::now().duration_since(UNIX_EPOCH) {
           Ok(n) => {
+            // log::info!("heartbeat->{}",n.as_secs());
             ctx.set_attribute(TIME_KEY.into(), Box::new(n.as_secs())).await;
           },
           Err(e) => log::error!("{:?}",e),
         }
       }
     }
-    // connection::Conns.println().await;
-    // let m=Msg::new(TypesEnum::ProxyOpen, msg.data);
-    // ctx.write(m).await;
   }
+
   async fn close(&self,ctx:&Context<Msg>){
     log::info!("{:?} 断开",ctx.addr());
-    
-    
     let id_attr=ctx.get_attribute("id".into()).await;
     let id=id_attr.lock().await;
     if let Some(id)=id.downcast_ref::<String>(){
+      
       proxy::remove(id).await;
       match connection::Conns.get(id.clone()).await{
         Some(c)=>{
@@ -224,8 +225,8 @@ impl Handler<Msg> for ServerHandler{
         }
       }
       connection::Conns.remove(id.clone()).await;
+      log::info!("已移除{}相关连接",id);
     }
     ctx.remove_attribute("id".into()).await;
-    
   }
 }

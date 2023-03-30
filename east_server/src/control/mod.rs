@@ -1,7 +1,6 @@
-use std::{thread, sync::{atomic::{AtomicBool, Ordering}, Arc, Mutex}};
+use std::{thread::{spawn}, sync::{Arc, Mutex}};
 
 use east_plugin::control::{AgentControl, ProxyControl};
-use tokio::spawn;
 
 use crate::{connection, proxy::Proxy};
 
@@ -61,7 +60,7 @@ impl ProxyControlImpl{
 impl ProxyControl for ProxyControlImpl{
     fn start(&self,id:String,bind_port:u16) {
       let rt=tokio::runtime::Runtime::new().unwrap();
-      spawn(async move {
+      spawn( move || {
         rt.block_on(async move {
           if let Some(conn)=connection::Conns.get(id.clone()).await{
             let mut proxy=Proxy::new(bind_port);

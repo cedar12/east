@@ -47,8 +47,9 @@ const state=reactive({
 
 
 const onConfirm=()=>{
-  emit('update:modelValue',false);
+  
   add(state.formData).then(res=>{
+    emit('update:modelValue',false);
     MessagePlugin.success(res.info);
   })
 }

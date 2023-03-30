@@ -26,7 +26,7 @@ impl Handler<ProxyMsg> for ProxyHandler{
 
   }
   async fn active(&self, ctx: &Context<ProxyMsg>) {
-    log::info!("proxy active {:?} id->{}", ctx.addr(),self.id);
+    log::info!("[{}]proxy active {:?} id->{}",self.conn_id, ctx.addr(),self.id);
     proxy::ProxyMap.lock().await.insert(self.id,ctx.clone());
     let mut id_map=proxy::IdMap.lock().await;
     match id_map.get_mut(&self.conn_id){
