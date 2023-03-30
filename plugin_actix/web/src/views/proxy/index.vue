@@ -34,9 +34,9 @@ const columns=[
     width:'90',
     colKey: 'enable',
     cell: (h, { row }) => (
-      row.enable?<t-popconfirm content="确认启用吗" theme="success" onConfirm={()=>{modifyEnable(row,false)}}>
+      row.enable?<t-popconfirm content="确认禁用吗" theme="danger" onConfirm={()=>{modifyEnable(row,false)}}>
           <t-tag theme="success" style="cursor:pointer">已启用</t-tag>
-      </t-popconfirm>:<t-popconfirm content="确认启用吗" theme="danger" onConfirm={()=>{modifyEnable(row,true)}}>
+      </t-popconfirm>:<t-popconfirm content="确认启用吗" theme="success" onConfirm={()=>{modifyEnable(row,true)}}>
         <t-tag theme="danger" style="cursor:pointer">已禁用</t-tag>
       </t-popconfirm>
     ),

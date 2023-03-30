@@ -60,21 +60,21 @@ impl ProxyControlImpl{
 impl ProxyControl for ProxyControlImpl{
     fn start(&self,id:String,bind_port:u16) {
       let rt=tokio::runtime::Runtime::new().unwrap();
-      spawn( move || {
-        rt.block_on(async move {
-          if let Some(conn)=connection::Conns.get(id.clone()).await{
-            let mut proxy=Proxy::new(bind_port);
-            conn.insert(bind_port,proxy.clone()).await;
-            if let Err(e)=proxy.listen().await{
-              log::error!("{:?}",e);
-              return
-            }
-            log::info!("开启代理转发端口->{}",bind_port);
+      rt.block_on(async move {
+        if let Some(conn)=connection::Conns.get(id.clone()).await{
+          let mut proxy=Proxy::new(bind_port);
+          conn.insert(bind_port,proxy.clone()).await;
+          if let Err(e)=proxy.listen().await{
+            log::error!("{:?}",e);
+            return
+          }
+          log::info!("开启代理转发端口->{}",bind_port);
+          tokio::spawn(async move{
             if let Err(e)=proxy.accept(id,conn.ctx().clone()).await{
               log::error!("{:?}",e);
             }
-          }
-        })
+          });
+        }
       });
     }
 

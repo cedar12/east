@@ -32,7 +32,7 @@ impl Handler<Msg> for AgentHandler {
             let mut sub=self.tx.subscribe();
             spawn(async move{
               loop {
-                  time::sleep(time::Duration::from_millis(5000)).await;
+                  time::sleep(time::Duration::from_millis(10000)).await;
                   let result=sub.try_recv();
                   if result.is_ok(){
                     log::info!("退出发送心跳线程");
