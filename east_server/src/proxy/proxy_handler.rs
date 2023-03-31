@@ -56,9 +56,6 @@ impl Handler<ProxyMsg> for ProxyHandler{
       return;
     }
     // self.ctx.remove_attribute(format!("{}_{}",proxy::STREAM,self.id)).await;
-    let mut bf=ByteBuf::new_with_capacity(0);
-    bf.write_u64_be(self.id);
-    let msg=Msg::new(TypesEnum::ProxyClose, bf.available_bytes().to_vec());
-    self.ctx.write(msg).await;
+    
   }
 }

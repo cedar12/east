@@ -7,7 +7,7 @@ use tokio::{net::TcpStream, spawn, sync::Mutex};
 use crate::{connection, proxy::{Proxy, self, ProxyMsg, proxy_encoder::ProxyEncoder, proxy_decoder::ProxyDecoder, proxy_handler::ProxyHandler}, config, plugin};
 
 
-const TIME_KEY:&str="heartbeat_time";
+pub const TIME_KEY:&str="heartbeat_time";
 
 pub const CONN_TIME_KEY:&str="conn_time";
 

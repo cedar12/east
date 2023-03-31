@@ -28,6 +28,9 @@ use tokio::io::Result;
 async fn main() -> Result<()> {
     log_conf::init();
     init_plugin().await;
+    tokio::spawn(async{
+        proxy::proxy_signal().await;
+    });
     server::run().await
 }
 
