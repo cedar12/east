@@ -3,6 +3,7 @@ use tokio::sync::mpsc::Receiver;
 use crate::byte_buf::ByteBuf;
 
 use crate::handler::{Handler };
+use crate::token_bucket::TokenBucket;
 use crate::{context::Context, decoder::Decoder, encoder::Encoder};
 use tokio::io::{AsyncReadExt, AsyncWriteExt, ReadHalf, WriteHalf, self};
 use tokio::sync::{mpsc::channel,Mutex};
@@ -29,6 +30,7 @@ where
     w:Arc<Mutex<WriteHalf<S>>>,
     close:Arc<Mutex<Receiver<()>>>,
     read_size:usize,
+    rate_limiter:Arc<Mutex<Option<TokenBucket>>>,
 }
 
 impl<E, D, H, T,S> Bootstrap<E, D, H, T,S>
@@ -56,7 +58,12 @@ where
             w:Arc::new(Mutex::new(w)),
             close:Arc::new(Mutex::new(close_rv)),
             read_size:READ_SIZE,
+            rate_limiter:Arc::new(Mutex::new(None))
         }
+    }
+
+    pub async fn set_rate_limiter(&self,rate_limiter:TokenBucket){
+        self.rate_limiter.lock().await.insert(rate_limiter);
     }
 
     pub fn capacity(&mut self,size:usize){
@@ -84,6 +91,8 @@ where
         let mut in_rv = in_rv.lock().await;
         let mut close = close.lock().await;
         let mut r=r.lock().await;
+
+        let mut rate_limiter=self.rate_limiter.lock().await;
         
         loop {
             tokio::select!{
@@ -118,6 +127,9 @@ where
                         Ok(n)=>{
                             if n == 0 {
                                 return Ok(());
+                            }
+                            if let Some(rate_limiter)=rate_limiter.as_mut(){
+                                rate_limiter.take(n).await;
                             }
                             bf.write_bytes(&buf[..n])?;
                             self.decoder.decode(ctx, &mut bf).await;
