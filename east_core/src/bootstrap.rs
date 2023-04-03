@@ -4,6 +4,7 @@ use tokio::sync::mpsc::Receiver;
 use crate::byte_buf::ByteBuf;
 
 use crate::handler::{Handler };
+use crate::token_bucket::TokenBucket;
 use crate::{context::Context, decoder::Decoder, encoder::Encoder};
 use tokio::io::{AsyncReadExt, AsyncWriteExt, ReadHalf, WriteHalf, self};
 use tokio::sync::{mpsc::channel,Mutex};
@@ -30,7 +31,7 @@ where
     w:Arc<Mutex<WriteHalf<S>>>,
     close:Arc<Mutex<Receiver<()>>>,
     read_size:usize,
-    limit:Option<Semaphore>,
+    rate_limiter:Arc<Mutex<Option<TokenBucket>>>,
 }
 
 impl<E, D, H, T,S> Bootstrap<E, D, H, T,S>
@@ -62,10 +63,9 @@ where
         }
     }
 
-    pub fn set_limit(&mut self,limit:usize){
-        self.limit.insert(Semaphore::new(limit));
+    pub async fn set_rate_limiter(&self,rate_limiter:TokenBucket){
+        self.rate_limiter.lock().await.insert(rate_limiter);
     }
-
 
     pub fn capacity(&mut self,size:usize){
         self.read_size=size;
@@ -93,12 +93,7 @@ where
         let mut close = close.lock().await;
         let mut r=r.lock().await;
 
-        
-        // let permit = None;
-        // if let Some(limit)=self.limit{
-        //     let p=limit.clone().acquire_owned().await;
-        //     permit.insert(p);
-        // }
+        let mut rate_limiter=self.rate_limiter.lock().await;
         
         loop {
             tokio::select!{
@@ -134,7 +129,9 @@ where
                             if n == 0 {
                                 return Ok(());
                             }
-                            // permit.wait().await;
+                            if let Some(rate_limiter)=rate_limiter.as_mut(){
+                                rate_limiter.take(n).await;
+                            }
                             bf.write_bytes(&buf[..n])?;
                             self.decoder.decode(ctx, &mut bf).await;
                         },
@@ -157,12 +154,3 @@ where
 
 
 }
-
-// unsafe impl<E, D, H, T> Send for Bootstrap<E, D, H, T>
-// where
-//     E: Encoder<T> + Send + 'static,
-//     D: Decoder<T> + Send + 'static,
-//     H: Handler<T> + Send + 'static,
-//     T: Send + Sync +'static,
-// {
-// }

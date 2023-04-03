@@ -18,6 +18,8 @@ pub mod bootstrap;
 
 pub mod message;
 
+pub mod token_bucket;
+
 #[cfg(test)]
 mod tests {
     use super::*;
