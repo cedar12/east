@@ -1,3 +1,4 @@
+use tokio::sync::Semaphore;
 use tokio::sync::mpsc::Receiver;
 
 use crate::byte_buf::ByteBuf;
@@ -29,6 +30,7 @@ where
     w:Arc<Mutex<WriteHalf<S>>>,
     close:Arc<Mutex<Receiver<()>>>,
     read_size:usize,
+    limit:Option<Semaphore>,
 }
 
 impl<E, D, H, T,S> Bootstrap<E, D, H, T,S>
@@ -56,8 +58,14 @@ where
             w:Arc::new(Mutex::new(w)),
             close:Arc::new(Mutex::new(close_rv)),
             read_size:READ_SIZE,
+            limit:None
         }
     }
+
+    pub fn set_limit(&mut self,limit:usize){
+        self.limit.insert(Semaphore::new(limit));
+    }
+
 
     pub fn capacity(&mut self,size:usize){
         self.read_size=size;
@@ -84,6 +92,13 @@ where
         let mut in_rv = in_rv.lock().await;
         let mut close = close.lock().await;
         let mut r=r.lock().await;
+
+        
+        // let permit = None;
+        // if let Some(limit)=self.limit{
+        //     let p=limit.clone().acquire_owned().await;
+        //     permit.insert(p);
+        // }
         
         loop {
             tokio::select!{
@@ -119,6 +134,7 @@ where
                             if n == 0 {
                                 return Ok(());
                             }
+                            // permit.wait().await;
                             bf.write_bytes(&buf[..n])?;
                             self.decoder.decode(ctx, &mut bf).await;
                         },
