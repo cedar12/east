@@ -10,6 +10,7 @@ jobs:
       matrix:
         arch:
           - x86_64-apple-darwin
+          - aarch64-apple-darwin
     steps:
       - uses: actions/checkout@v2
         with:
@@ -20,16 +21,15 @@ jobs:
           target: ${{ matrix.arch }}
       - uses: actions-rs/cargo@v1
         with:
-          path: east_server
           command: build
           args: --release --target ${{ matrix.arch }} --package east_server
 
       - uses: actions/upload-artifact@v2
         with:
           name: ${{ matrix.arch }}
-          path: east_server/target/${{ matrix.arch }}/release/east_*
+          path: ./east_server/target/${{ matrix.arch }}/release/east*
         
-      - run: zip -j ${{ matrix.arch }} ./east_server/target/${{ matrix.arch }}/release/east_*
+      - run: zip -j ${{ matrix.arch }} ./east_server/target/${{ matrix.arch }}/release/east*
     
       - name: Release Drafter
         id: create_release
@@ -71,9 +71,9 @@ jobs:
       - uses: actions/upload-artifact@v2
         with:
           name: ${{ matrix.arch }}
-          path: east_server/target/${{ matrix.arch }}/release/east_*
+          path: ./east_server/target/${{ matrix.arch }}/release/east*
         
-      - run: ./zip/zip.exe -j ${{ matrix.arch }} ./east_server/east_server/target/${{ matrix.arch }}/release/east_*
+      - run: ./zip/zip.exe -j ${{ matrix.arch }} ./east_server/east_server/target/${{ matrix.arch }}/release/east*
     
       - name: Release Drafter
         id: create_release
@@ -113,9 +113,9 @@ jobs:
       - uses: actions/upload-artifact@v2
         with:
           name: ${{ matrix.arch }}
-          path: east_server/target/${{ matrix.arch }}/release/east_*
+          path: ./east_server/target/${{ matrix.arch }}/release/east*
       
-      - run: zip -j ${{ matrix.arch }} ./east_server/target/${{ matrix.arch }}/release/east_*
+      - run: zip -j ${{ matrix.arch }} ./east_server/target/${{ matrix.arch }}/release/east*
     
       - name: Release Drafter
         id: create_release
