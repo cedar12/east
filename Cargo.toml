@@ -1,0 +1,7 @@
+[workspace]
+members=[
+  "east_server",
+  "east_agent",
+  "plugin_sqlite",
+  "plugin_actix",
+]
