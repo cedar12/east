@@ -1,63 +1,28 @@
-use std::time::Duration;
-
-use tokio::{time::Instant, sync::Semaphore};
+use std::sync::Arc;
+use tokio::sync::Semaphore;
+use tokio::time::{sleep, Duration};
 
 pub struct TokenBucket {
+    rate: f64,
     capacity: usize,
-    tokens: usize,
-    last_refill: Instant,
-    refill_interval: Duration,
-    refill_amount: usize,
-    semaphore: Semaphore,
+    semaphore: Arc<Semaphore>,
 }
 
 impl TokenBucket {
-    pub fn new(capacity: usize, refill_rate: usize) -> Self {
-        let refill_interval = Duration::from_secs(1);
-        let refill_amount = refill_rate;
-        let semaphore = Semaphore::new(capacity);
-
-        Self {
-            capacity,
-            tokens: capacity,
-            last_refill: Instant::now(),
-            refill_interval,
-            refill_amount,
-            semaphore,
-        }
+    pub fn new(rate: f64, capacity: usize) -> Self {
+        let semaphore = Arc::new(Semaphore::new(capacity));
+        Self { rate, capacity, semaphore }
     }
 
-    pub async fn take(&mut self, n: usize) {
-        let mut tokens = n;
-
-        loop {
-            let available_tokens = self.semaphore.available_permits() as usize;
-            let refill_amount = self.refill_amount();
-
-            if available_tokens >= tokens {
-                self.semaphore.acquire_many(tokens as u32).await.unwrap();
-                break;
-            } else if available_tokens > 0 {
-                self.semaphore.acquire_many(available_tokens as u32).await.unwrap();
-                tokens -= available_tokens;
-            } else {
-                let time_since_last_refill = Instant::now().duration_since(self.last_refill);
-                let tokens_to_add = (time_since_last_refill.as_secs_f64() / self.refill_interval.as_secs_f64())
-                    as usize * self.refill_amount;
-                let new_tokens = (self.tokens + tokens_to_add).min(self.capacity);
-                self.tokens = new_tokens;
-                self.last_refill += Duration::from_secs_f64(
-                    (new_tokens - self.tokens) as f64 / self.refill_amount as f64
-                        * self.refill_interval.as_secs_f64(),
-                );
-            }
+    pub async fn take(&self, n: usize) {
+        if n > self.capacity {
+            sleep(Duration::from_secs_f64(n as f64 / self.rate)).await;
+            return;
         }
-    }
-
-    fn refill_amount(&self) -> usize {
-        let time_since_last_refill = Instant::now().duration_since(self.last_refill);
-        let tokens_to_add = (time_since_last_refill.as_secs_f64() / self.refill_interval.as_secs_f64())
-            as usize * self.refill_amount;
-        (self.tokens + tokens_to_add).min(self.capacity) - self.tokens
+        let tokens = self.semaphore.clone();
+        for _ in 0..n {
+            tokens.acquire().await.unwrap().forget();
+        }
+        sleep(Duration::from_secs_f64(n as f64 / self.rate)).await;
     }
 }

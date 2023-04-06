@@ -6,7 +6,6 @@ extern crate libloading;
 extern crate cron_job;
 
 mod connection;
-mod connection2;
 mod server;
 mod handler;
 
@@ -18,6 +17,8 @@ mod plugin;
 
 mod control;
 mod log_conf;
+
+#[cfg(test)]
 mod tests;
 
 use plugin::init_plugin;

@@ -19,6 +19,7 @@ use east_core::{
     bootstrap::Bootstrap, byte_buf::ByteBuf, context::Context, message::Msg, types::TypesEnum,
 };
 use tokio::sync::mpsc;
+use tokio::net::TcpStream;
 use tokio::{
     io::AsyncWriteExt,
     net::TcpListener,
@@ -40,6 +41,7 @@ lazy_static! {
 pub mod proxy_decoder;
 pub mod proxy_encoder;
 pub mod proxy_handler;
+pub mod speed;
 
 pub const STREAM: &str = "proxy_stream";
 pub const PROXY_KEY: &str = "proxy";
@@ -114,6 +116,7 @@ impl Proxy {
             loop {
                 select! {
                 _=rv.recv()=>{
+                  drop(listen);
                   return Ok(())
                 },
                 ret=listen.accept()=>{
@@ -129,20 +132,15 @@ impl Proxy {
                       // log::info!("{:?}",proxy);
                       match proxy{
                         core::result::Result::Ok((_,proxy))=>{
-                          let p=proxy.clone();
-                          if !use_plugin_match(p,addr.to_string()){
+                          if !use_plugin_match(proxy.clone(),addr.to_string()){
                             log::warn!("IP->{:?},不在白名单列表内,阻止连接",addr);
                             let _=stream.shutdown().await;
                           }else{
-                            let id=last_id.load(Ordering::Relaxed);
-                            if u64::MAX==id{
-                              last_id.store(1, Ordering::Relaxed);
-                            }else{
-                              last_id.store(id+1, Ordering::Relaxed);
-                            }
+                            let id=last_id.fetch_add(1,Ordering::Relaxed);
                             self.ids.lock().await.push(id);
                             log::info!("{:?}连接代理端口, id->{}",addr,id);
-                            let boot=Bootstrap::build(stream, addr, ProxyEncoder{}, ProxyDecoder{}, ProxyHandler{ctx:ctx.clone(),id:id,conn_id:conn_id.clone()});
+                            let boot=Bootstrap::build(stream, addr, ProxyEncoder::new(), ProxyDecoder::new(), ProxyHandler{ctx:ctx.clone(),id:id,conn_id:conn_id.clone(),port:bind_port});
+                            // boot.set_limit(1024).await;
                             ctx.set_attribute(format!("{}_{}",STREAM,id), Box::new(Arc::new(Mutex::new(boot)))).await;
                             let conn_id=conn_id.clone();
                             let mut bf=ByteBuf::new_with_capacity(0);
@@ -184,15 +182,10 @@ impl Proxy {
                               log::warn!("IP->{:?},不在白名单列表内,阻止连接",addr);
                               let _=stream.shutdown().await;
                             }else{
-                              let id=last_id.load(Ordering::Relaxed);
-                              if u64::MAX==id{
-                                last_id.store(1, Ordering::Relaxed);
-                              }else{
-                                last_id.store(id+1, Ordering::Relaxed);
-                              }
+                              let id=last_id.fetch_add(1,Ordering::Relaxed);
                               self.ids.lock().await.push(id);
                               log::info!("{:?}连接代理端口, id->{}",addr,id);
-                              let boot=Bootstrap::build(stream, addr, ProxyEncoder{}, ProxyDecoder{}, ProxyHandler{ctx:ctx.clone(),id:id,conn_id:conn_id.clone()});
+                              let boot=Bootstrap::build(stream, addr, ProxyEncoder::new(), ProxyDecoder::new(), ProxyHandler{ctx:ctx.clone(),id:id,conn_id:conn_id.clone(),port:bind_port});
                               ctx.set_attribute(format!("{}_{}",STREAM,id), Box::new(Arc::new(Mutex::new(boot)))).await;
                               let conn_id=conn_id.clone();
                               let mut bf=ByteBuf::new_with_capacity(0);

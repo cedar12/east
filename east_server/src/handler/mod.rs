@@ -1,6 +1,6 @@
 use std::{sync::Arc, time::{SystemTime, UNIX_EPOCH}};
 
-use east_core::{handler::Handler, message::Msg, context::Context, types::TypesEnum, byte_buf::ByteBuf, bootstrap::Bootstrap};
+use east_core::{handler::Handler, message::Msg, context::Context, types::TypesEnum, byte_buf::ByteBuf, bootstrap::Bootstrap, token_bucket::TokenBucket};
 use async_trait::async_trait;
 use tokio::{net::TcpStream, spawn, sync::Mutex};
 
@@ -42,13 +42,14 @@ impl Handler<Msg> for ServerHandler{
                 let id=s.clone();
                 let id2=s.clone();
                 let id3=s.clone();
-                ctx.set_attribute("id".into(), Box::new(id2)).await;
+                
                 let opt=connection::Conns.get(s).await;
                 match opt{
                   Some(c)=>{
                     log::info!("{:?}已经连接了，不能重复连接",c);
                   }
                   None=>{
+                    ctx.set_attribute("id".into(), Box::new(id2)).await;
                     let conn=connection::Connection::new(ctx.clone(),id);
                     connection::Conns.insert(id3.clone(),conn).await;
                     let msg=Msg::new(TypesEnum::Auth,vec![]);
@@ -94,13 +95,14 @@ impl Handler<Msg> for ServerHandler{
                 let id=s.clone();
                 let id2=s.clone();
                 let id3=s.clone();
-                ctx.set_attribute("id".into(), Box::new(id2)).await;
+                
                 let opt=connection::Conns.get(s).await;
                 match opt{
                   Some(c)=>{
                     log::info!("{:?}已经连接了，不能重复连接",c);
                   }
                   None=>{
+                    ctx.set_attribute("id".into(), Box::new(id2)).await;
                     let conn=connection::Connection::new(ctx.clone(),id);
                     connection::Conns.insert(id3.clone(),conn).await;
                     let msg=Msg::new(TypesEnum::Auth,vec![]);
@@ -174,7 +176,7 @@ impl Handler<Msg> for ServerHandler{
           None=>{
             log::warn!("无{}代理连接，无法转发",id);
             let mut bf=ByteBuf::new_with_capacity(0);
-            bf.write_u64_be(id);
+            bf.write_u64_be(id).unwrap();
             let msg=Msg::new(TypesEnum::ProxyClose,bf.available_bytes().to_vec());
             ctx.write(msg).await;
           }

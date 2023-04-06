@@ -14,8 +14,6 @@ log/
 *.db
 
 # 配置文件
-!/.github/wrokflows/*.yml
-
 /east_server/*.yml
 /east_agent/*.yml
 

@@ -1,15 +1,20 @@
 # east
-高性能、低占用的一款TCP端口转发工具
+高性能、低占用的一款TCP端口转发工具。可以方便地将本地端口转发到远程服务器上。
 
 ## 使用技术
 * 开发语言：rust
 * 异步框架：tokio
 
-## 端口转发
-默认只支持配置文件配置端口转发，如需使用数据库配置文件请使用[数据库插件](#服务端插件)
+## 特性
+- 支持tcp、http、rdp、ssh。
+- 支持ip规则过滤阻止连接代理端口。
+- 插件化设计，支持加载第三方插件。
+- 灵活的配置方式，可自定义端口转发规则、监听地址和转发目标地址等信息。
+- 支持在Web控制台管理转发，可停止启动转发。需使用插件[east_actix](https://gitee.com/cedar12/east/tree/main/plugin_actix)
+- ~~支持在Web控制台显示每一个代理转发的速率、流量统计（待实现）~~
 
-1. 支持tcp、http、rdp、ssh
-2. 支持ip规则过滤阻止连接代理端口
+
+默认只支持配置文件配置端口转发规则，如需使用数据库配置文件请使用[数据库插件](#服务端插件)
 
 ## 配置文件
 > 配置文件只支持yml格式，服务端、代理端名称均固定为conf.yml
@@ -61,6 +66,11 @@ id: test
 
 ## 服务端插件
 服务端插件的作用是在不侵入自身代码的前提下，扩展服务端的能力
+可以自行实现服务端插件，并编译成.so或.dll和.dylib等动态链接库。
+
+插件需要实现Plugin trait。
+
+详细的插件开发指南请参考[east_plugin](https://gitee.com/cedar12/east/tree/main/east_plugin)。
 
 * windows 插件使用dll
 * macos 插件使用dylib
@@ -82,7 +92,12 @@ id: test
 
   可实现不同的web界面
 
+  [east_actix](https://gitee.com/cedar12/east/tree/main/plugin_actix) Web控制台插件
+
 ### 下载使用
 * [east-x86_64-pc-windows_0.0.1](https://gitee.com/cedar12/east/releases/tag/0.0.1)
 
 下载解压之后分为server（服务端）、agent（代理端），进入服务端目录或代理端目录配置conf.yml文件双击运行exe即可
+
+### 许可证
+本项目基于Apache2.0许可证发布。

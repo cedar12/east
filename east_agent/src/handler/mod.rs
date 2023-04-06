@@ -107,7 +107,9 @@ async fn proxy_open(msg:Msg,ctx: Context<Msg>){
     Ok(stream)=>{
       let addr=stream.peer_addr().unwrap();
       log::info!("代理连接{}",addr);
-      let result=Bootstrap::build(stream, addr, ProxyEncoder{}, ProxyDecoder{}, ProxyHandler{ctx: ctx.clone(),id:id}).run().await;
+      let mut boot=Bootstrap::build(stream, addr, ProxyEncoder{}, ProxyDecoder{}, ProxyHandler{ctx: ctx.clone(),id:id});
+      // boot.set_rate_limiter(east_core::token_bucket::TokenBucket::new(1024,1024)).await;
+      let result=boot.run().await;
       if let Err(e)=result{
         log::error!("{:?}",e);
         let mut bf=ByteBuf::new_with_capacity(0);

@@ -37,12 +37,20 @@ impl Connection {
     pub async fn insert(&self,port:u16,p:Proxy){
         self.bind_proxy.lock().await.insert(port, p);
     }
+    pub async fn get_proxy(&self,port:u16)->Option<Proxy>{
+        let ctx=self.clone().ctx();
+        let binds=self.bind_proxy.lock().await;
+        if let Some(proxy)=binds.get(&port){
+            return Some(proxy.clone())
+        }
+        None
+    }
     pub async fn remove(&self,port:u16){
         let ctx=self.clone().ctx();
         let mut binds=self.bind_proxy.lock().await;
         if let Some(proxy)=binds.get(&port){
             log::info!("关闭监听端口->{}",port);
-            proxy.close().await;
+            
             let mut p_map=proxy::ProxyMap.lock().await;
             let ids=proxy.ids.lock().await;
             for (_,id) in ids.iter().enumerate(){
@@ -53,13 +61,25 @@ impl Connection {
                 p_map.remove(id);
                 log::debug!("移除转发->{}",id)
             }
+            proxy.close().await;
         }
         binds.remove(&port);
     }
     pub async fn remove_all(&self){
+        let ctx=self.clone().ctx();
         let mut binds=self.bind_proxy.lock().await;
         for (port,proxy) in binds.iter(){
             log::info!("关闭监听端口->{}",port);
+            let mut p_map=proxy::ProxyMap.lock().await;
+            let ids=proxy.ids.lock().await;
+            for (_,id) in ids.iter().enumerate(){
+                let mut bf=ByteBuf::new_with_capacity(0);
+                bf.write_u64_be(*id);
+                let msg=Msg::new(TypesEnum::ProxyClose, bf.available_bytes().to_vec());
+                ctx.write(msg).await;
+                p_map.remove(id);
+                log::debug!("移除转发->{}",id)
+            }
             proxy.close().await;
         }
         binds.clear();
@@ -97,9 +117,9 @@ impl Connections {
         tokio::spawn(async move{
             loop{
                 tokio::time::sleep(tokio::time::Duration::from_millis(2000)).await;
-                let conns=self_conns.lock().await;
-                let mut r_conns=conns.clone();
-                for (id,conn) in conns.iter(){
+                let mut conns=self_conns.lock().await;
+                let r_conns=conns.clone();
+                for (id,conn) in r_conns.iter(){
                     let conn_c=conn.clone();
                     let ctx=conn_c.ctx();
                     let t=ctx.get_attribute(TIME_KEY.into()).await;
@@ -109,7 +129,9 @@ impl Connections {
                             Ok(n) => {
                                 if n.as_secs()-t>TIME_OUT{
                                     log::warn!("移除心跳过期连接: {}",id);
-                                    r_conns.remove(id);
+                                    conn.remove_all().await;
+                                    ctx.close().await;
+                                    conns.remove(id);
                                 }
                             },
                             Err(e) => log::error!("{:?}",e),

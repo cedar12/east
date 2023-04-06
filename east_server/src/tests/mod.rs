@@ -110,3 +110,17 @@ async fn test_plugin_manage(){
     }
     
 }
+
+
+#[tokio::test]
+async fn test_rate_limiter(){
+    use east_core::token_bucket::TokenBucket;
+    let bucket = TokenBucket::new(128.0*1024.0, 1024*1024);
+    // let start = tokio::time::Instant::now();
+    // for i in 0..10 {
+    //     bucket.take(i+2020 + 1).await;
+    //     println!("{}: {:?}", i + 1, start.elapsed());
+    // }
+    bucket.take(128*1024+1).await;
+
+}

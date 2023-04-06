@@ -5,11 +5,14 @@ use crate::proxy;
 use super::ProxyMsg;
 
 
+const PORT_KEY:&str="port";
+
 
 pub struct ProxyHandler{
   pub ctx:Context<Msg>,
   pub id:u64,
   pub conn_id:String,
+  pub port:u16,
 }
 
 #[async_trait::async_trait]
@@ -27,6 +30,7 @@ impl Handler<ProxyMsg> for ProxyHandler{
   }
   async fn active(&self, ctx: &Context<ProxyMsg>) {
     log::info!("[{}]proxy active {:?} id->{}",self.conn_id, ctx.addr(),self.id);
+    ctx.set_attribute(PORT_KEY.into(),Box::new(self.port)).await;
     proxy::ProxyMap.lock().await.insert(self.id,ctx.clone());
     let mut id_map=proxy::IdMap.lock().await;
     match id_map.get_mut(&self.conn_id){
@@ -51,9 +55,6 @@ impl Handler<ProxyMsg> for ProxyHandler{
       None=>{
         log::warn!("无连接id->{}",self.conn_id);
       }
-    }
-    if !ctx.is_run(){
-      return;
     }
     // self.ctx.remove_attribute(format!("{}_{}",proxy::STREAM,self.id)).await;
     

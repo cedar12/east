@@ -1,5 +1,5 @@
-use tokio::sync::Semaphore;
 use tokio::sync::mpsc::Receiver;
+use tokio::time::{Instant, sleep,Duration};
 
 use crate::byte_buf::ByteBuf;
 
@@ -31,7 +31,7 @@ where
     w:Arc<Mutex<WriteHalf<S>>>,
     close:Arc<Mutex<Receiver<()>>>,
     read_size:usize,
-    rate_limiter:Arc<Mutex<Option<TokenBucket>>>,
+    rate_limit:Arc<Mutex<Option<TokenBucket>>>,
 }
 
 impl<E, D, H, T,S> Bootstrap<E, D, H, T,S>
@@ -59,12 +59,13 @@ where
             w:Arc::new(Mutex::new(w)),
             close:Arc::new(Mutex::new(close_rv)),
             read_size:READ_SIZE,
-            limit:None
+            rate_limit:Arc::new(Mutex::new(None))
         }
     }
 
-    pub async fn set_rate_limiter(&self,rate_limiter:TokenBucket){
-        self.rate_limiter.lock().await.insert(rate_limiter);
+    pub async fn set_rate_limit(&self,rate_limit:u64){
+        let bucket = TokenBucket::new(rate_limit as f64, self.read_size*self.read_size);
+        self.rate_limit.lock().await.insert(bucket);
     }
 
     pub fn capacity(&mut self,size:usize){
@@ -92,9 +93,9 @@ where
         let mut in_rv = in_rv.lock().await;
         let mut close = close.lock().await;
         let mut r=r.lock().await;
-
-        let mut rate_limiter=self.rate_limiter.lock().await;
         
+        let limiter=self.rate_limit.lock().await;
+
         loop {
             tokio::select!{
                 msg = out.recv() => {
@@ -113,6 +114,7 @@ where
                             .encode(ctx.as_ref(), msg, &mut byte_buf);
                         let mut buf = vec![0u8; byte_buf.readable_bytes()];
                         byte_buf.read_bytes(&mut buf);
+                        
                         w.lock().await.write(&buf).await?;
                     }
                 },
@@ -121,6 +123,7 @@ where
                     return Ok(())
                 },
                 n=r.read(&mut buf)=>{
+                    
                     match n{
                         Ok(0)=>{
                             return Ok(())
@@ -129,8 +132,8 @@ where
                             if n == 0 {
                                 return Ok(());
                             }
-                            if let Some(rate_limiter)=rate_limiter.as_mut(){
-                                rate_limiter.take(n).await;
+                            if let Some(limiter)=limiter.as_ref(){
+                                limiter.take(n).await;
                             }
                             bf.write_bytes(&buf[..n])?;
                             self.decoder.decode(ctx, &mut bf).await;
