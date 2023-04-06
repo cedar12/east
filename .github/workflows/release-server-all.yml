@@ -22,14 +22,14 @@ jobs:
         with:
           path: east_server
           command: build
-          args: --release --target ${{ matrix.arch }} --features "fuc-log"
+          args: --release --target ${{ matrix.arch }} --package east_server --features "fuc-log"
 
       - uses: actions/upload-artifact@v2
         with:
           name: ${{ matrix.arch }}
-          path: target/${{ matrix.arch }}/release/east_*
+          path: east_server/target/${{ matrix.arch }}/release/east_*
         
-      - run: zip -j ${{ matrix.arch }} ./target/${{ matrix.arch }}/release/east_*
+      - run: zip -j ${{ matrix.arch }} ./east_server/target/${{ matrix.arch }}/release/east_*
     
       - name: Release Drafter
         id: create_release
@@ -67,13 +67,13 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --release --target ${{ matrix.arch }} --features "fuc-log"
+          args: --release --target ${{ matrix.arch }} --package east_server --features "fuc-log"
       - uses: actions/upload-artifact@v2
         with:
           name: ${{ matrix.arch }}
-          path: target/${{ matrix.arch }}/release/east_*
+          path: east_server/target/${{ matrix.arch }}/release/east_*
         
-      - run: ./zip/zip.exe -j ${{ matrix.arch }} ./target/${{ matrix.arch }}/release/east_*
+      - run: ./zip/zip.exe -j ${{ matrix.arch }} ./east_server/east_server/target/${{ matrix.arch }}/release/east_*
     
       - name: Release Drafter
         id: create_release
@@ -109,13 +109,13 @@ jobs:
         with:
           toolchain: stable
       - run: cargo install cross --git https://github.com/cross-rs/cross
-      - run: cross build --release --target ${{ matrix.arch }} --features 'fuc-log'
+      - run: cross build --release --target ${{ matrix.arch }}  --package east_server --features 'fuc-log'
       - uses: actions/upload-artifact@v2
         with:
           name: ${{ matrix.arch }}
-          path: target/${{ matrix.arch }}/release/east_*
+          path: east_server/target/${{ matrix.arch }}/release/east_*
       
-      - run: zip -j ${{ matrix.arch }} ./target/${{ matrix.arch }}/release/east_*
+      - run: zip -j ${{ matrix.arch }} ./east_server/target/${{ matrix.arch }}/release/east_*
     
       - name: Release Drafter
         id: create_release
