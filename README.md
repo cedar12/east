@@ -95,9 +95,9 @@ id: test
   [east_actix](https://gitee.com/cedar12/east/tree/main/plugin_actix) Web控制台插件
 
 ### 下载使用
-* [east-x86_64-pc-windows_0.0.1](https://gitee.com/cedar12/east/releases/tag/0.0.1)
+* [下载地址](https://github.com/cedar12/east/releases/tag/untagged-d3492c50a14dda4776b3)
 
-下载解压之后分为server（服务端）、agent（代理端），进入服务端目录或代理端目录配置conf.yml文件双击运行exe即可
+下载分为server（服务端）、agent（代理端），进入服务端目录或代理端目录配置conf.yml文件双击运行exe即可
 
 ### 许可证
 本项目基于Apache2.0许可证发布。
