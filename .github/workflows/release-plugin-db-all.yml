@@ -1,4 +1,4 @@
-name: Release Server ALL
+name: Release Plugin DB ALL
 
 on:
   workflow_dispatch:
@@ -25,14 +25,14 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --release --target ${{ matrix.arch }} --package east_server
+          args: --release --target ${{ matrix.arch }} --package east_sqlite
 
       - uses: actions/upload-artifact@v2
         with:
           name: ${{ matrix.arch }}
-          path: target/${{ matrix.arch }}/release/east*
+          path: target/${{ matrix.arch }}/release/*.dylib
         
-      - run: zip -j server_${{ matrix.arch }} target/${{ matrix.arch }}/release/east*
+      - run: zip -j plugin_sqlite_${{ matrix.arch }} target/${{ matrix.arch }}/release/*.dylib
     
       - name: Release Drafter
         id: create_release
@@ -47,8 +47,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }} 
-          asset_path: server_${{ matrix.arch }}.zip
-          asset_name: server_${{ matrix.arch }}.zip
+          asset_path: plugin_sqlite_${{ matrix.arch }}.zip
+          asset_name: plugin_sqlite_${{ matrix.arch }}.zip
           asset_content_type: application/zip
 
   build-windows-release:
@@ -73,20 +73,20 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --release --target ${{ matrix.arch }} --package east_server
+          args: --release --target ${{ matrix.arch }} --package east_sqlite
 
       - uses: actions/upload-artifact@v2
         with:
           name: ${{ matrix.arch }}
-          path: target/${{ matrix.arch }}/release/east*
+          path: target/${{ matrix.arch }}/release/*.dll
 
-      - run: copy target/${{ matrix.arch }}/release/east* ./
+      - run: copy target/${{ matrix.arch }}/release/*.dll ./
 
       - uses: thedoctor0/zip-release@0.7.1
         with:
           type: zip
-          filename: server_${{ matrix.arch }}.zip
-          path: ./east*.exe
+          filename: plugin_sqlite_${{ matrix.arch }}.zip
+          path: ./*.dll
     
       - name: Release Drafter
         id: create_release
@@ -101,8 +101,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }} 
-          asset_path: server_${{ matrix.arch }}.zip
-          asset_name: server_${{ matrix.arch }}.zip
+          asset_path: plugin_sqlite_${{ matrix.arch }}.zip
+          asset_name: plugin_sqlite_${{ matrix.arch }}.zip
           asset_content_type: application/zip
 
   build-linux-release:
@@ -125,12 +125,12 @@ jobs:
         with:
           toolchain: stable
       - run: cargo install cross --git https://github.com/cross-rs/cross
-      - run: cross build --release --target ${{ matrix.arch }}  --package east_server
+      - run: cross build --release --target ${{ matrix.arch }}  --package east_sqlite
       - uses: actions/upload-artifact@v2
         with:
           name: ${{ matrix.arch }}
-          path: target/${{ matrix.arch }}/release/east*
-      - run: zip -j server_${{ matrix.arch }} target/${{ matrix.arch }}/release/east*
+          path: target/${{ matrix.arch }}/release/*.so
+      - run: zip -j plugin_sqlite_${{ matrix.arch }} target/${{ matrix.arch }}/release/*.so
     
       - name: Release Drafter
         id: create_release
@@ -145,6 +145,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }} 
-          asset_path: server_${{ matrix.arch }}.zip
-          asset_name: server_${{ matrix.arch }}.zip
+          asset_path: plugin_sqlite_${{ matrix.arch }}.zip
+          asset_name: plugin_sqlite_${{ matrix.arch }}.zip
           asset_content_type: application/zip

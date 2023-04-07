@@ -1,6 +1,12 @@
 # east
 高性能、低占用的一款TCP端口转发工具。可以方便地将本地端口转发到远程服务器上。
 
+![](https://img.shields.io/github/stars/cedar12/east)
+![](https://img.shields.io/github/forks/cedar12/east)
+![](https://img.shields.io/github/watchers/cedar12/east)
+![](https://img.shields.io/github/languages/code-size/cedar12/east)
+![](https://img.shields.io/badge/license-Apache%202-blue)
+![](https://img.shields.io/github/downloads/cedar12/east/total)
 ## 使用技术
 * 开发语言：rust
 * 异步框架：tokio

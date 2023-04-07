@@ -8,4 +8,3 @@ edition = "2021"
 [dependencies]
 tokio = { version = "1.13.0", features = ["full"] }
 async-trait = "0.1.52"
-leaky-bucket = "0.12.4"
