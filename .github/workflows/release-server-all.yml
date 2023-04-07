@@ -72,8 +72,10 @@ jobs:
         with:
           name: ${{ matrix.arch }}
           path: target/${{ matrix.arch }}/release/east*
-        
-      - run: zip.exe -j ${{ matrix.arch }} target/${{ matrix.arch }}/release/east*
+          
+      - uses: montudor/action-zip@v1
+        with:
+          args: zip -qq -r ${{ matrix.arch }}.zip target/${{ matrix.arch }}/release/east_server
     
       - name: Release Drafter
         id: create_release
