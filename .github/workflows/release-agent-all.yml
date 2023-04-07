@@ -86,7 +86,6 @@ jobs:
         with:
           type: zip
           filename: agent_${{ matrix.arch }}.zip
-          directory: target/${{ matrix.arch }}/release
           path: ./east*.exe
     
       - name: Release Drafter
