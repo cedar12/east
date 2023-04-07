@@ -32,7 +32,7 @@ jobs:
           name: ${{ matrix.arch }}
           path: target/${{ matrix.arch }}/release/east*
         
-      - run: zip -j ${{ matrix.arch }} target/${{ matrix.arch }}/release/east*
+      - run: zip -j agent_${{ matrix.arch }} target/${{ matrix.arch }}/release/east*
     
       - name: Release Drafter
         id: create_release
@@ -80,12 +80,14 @@ jobs:
           name: ${{ matrix.arch }}
           path: target/${{ matrix.arch }}/release/east*
 
+      - run: copy target/${{ matrix.arch }}/release/east* ./
+
       - uses: thedoctor0/zip-release@0.7.1
         with:
           type: zip
-          filename: ${{ matrix.arch }}.zip
+          filename: agent_${{ matrix.arch }}.zip
           directory: target/${{ matrix.arch }}/release
-          path: target/${{ matrix.arch }}/release/east*
+          path: ./east*.exe
     
       - name: Release Drafter
         id: create_release
@@ -100,7 +102,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }} 
-          asset_path: agent_ ${{ matrix.arch }}.zip
+          asset_path: agent_${{ matrix.arch }}.zip
           asset_name: agent_${{ matrix.arch }}.zip
           asset_content_type: application/zip
 
@@ -130,7 +132,7 @@ jobs:
           name: ${{ matrix.arch }}
           path: target/${{ matrix.arch }}/release/east*
       
-      - run: zip -j ${{ matrix.arch }} target/${{ matrix.arch }}/release/east*
+      - run: zip -j agent_${{ matrix.arch }} target/${{ matrix.arch }}/release/east*
     
       - name: Release Drafter
         id: create_release
