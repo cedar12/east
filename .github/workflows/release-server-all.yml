@@ -27,9 +27,9 @@ jobs:
       - uses: actions/upload-artifact@v2
         with:
           name: ${{ matrix.arch }}
-          path: ./east_server/target/${{ matrix.arch }}/release/east*
+          path: target/${{ matrix.arch }}/release/east*
         
-      - run: zip -j ${{ matrix.arch }} ./east_server/target/${{ matrix.arch }}/release/east*
+      - run: zip -j ${{ matrix.arch }} target/${{ matrix.arch }}/release/east*
     
       - name: Release Drafter
         id: create_release
@@ -71,9 +71,9 @@ jobs:
       - uses: actions/upload-artifact@v2
         with:
           name: ${{ matrix.arch }}
-          path: ./east_server/target/${{ matrix.arch }}/release/east*
+          path: target/${{ matrix.arch }}/release/east*
         
-      - run: ./zip/zip.exe -j ${{ matrix.arch }} ./east_server/east_server/target/${{ matrix.arch }}/release/east*
+      - run: ./zip/zip.exe -j ${{ matrix.arch }} target/${{ matrix.arch }}/release/east*
     
       - name: Release Drafter
         id: create_release
@@ -113,9 +113,9 @@ jobs:
       - uses: actions/upload-artifact@v2
         with:
           name: ${{ matrix.arch }}
-          path: ./east_server/target/${{ matrix.arch }}/release/east*
+          path: target/${{ matrix.arch }}/release/east*
       
-      - run: zip -j ${{ matrix.arch }} ./east_server/target/${{ matrix.arch }}/release/east*
+      - run: zip -j ${{ matrix.arch }} target/${{ matrix.arch }}/release/east*
     
       - name: Release Drafter
         id: create_release
