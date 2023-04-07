@@ -84,7 +84,7 @@ jobs:
         with:
           type: zip
           filename: ${{ matrix.arch }}.zip
-          path: target/${{ matrix.arch }}/release/east_server
+          path: target/${{ matrix.arch }}/release/east*
     
       - name: Release Drafter
         id: create_release
