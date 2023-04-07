@@ -68,7 +68,7 @@ jobs:
         with:
           command: build
           args: --release --target ${{ matrix.arch }} --package east_server
-      - uses: actions/upload-artifact@v2
+      - uses: thedoctor0/zip-release@0.7.1
         with:
           type: zip
           filename: ${{ matrix.arch }}.zip
