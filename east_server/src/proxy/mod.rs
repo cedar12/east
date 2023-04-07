@@ -1,7 +1,7 @@
 use std::{
     collections::HashMap,
     sync::{
-        atomic::{AtomicU64, Ordering},
+        atomic::{AtomicU32, Ordering},
         Arc,
     }
 };
@@ -31,7 +31,7 @@ use tokio::{
 };
 
 lazy_static! {
-  static ref last_id:AtomicU64=AtomicU64::new(1);
+  pub static ref last_id:AtomicU32=AtomicU32::new(1);
   pub static ref ProxyMap:Arc<Mutex<HashMap<u64,Context<ProxyMsg>>>>=Arc::new(Mutex::new(HashMap::new()));
   pub static ref IdMap:Arc<Mutex<HashMap<String,Vec<u64>>>>=Arc::new(Mutex::new(HashMap::new()));
 
@@ -136,7 +136,7 @@ impl Proxy {
                             log::warn!("IP->{:?},不在白名单列表内,阻止连接",addr);
                             let _=stream.shutdown().await;
                           }else{
-                            let id=last_id.fetch_add(1,Ordering::Relaxed);
+                            let id=last_id.fetch_add(1,Ordering::Relaxed) as u64;
                             self.ids.lock().await.push(id);
                             log::info!("{:?}连接代理端口, id->{}",addr,id);
                             let boot=Bootstrap::build(stream, addr, ProxyEncoder::new(), ProxyDecoder::new(), ProxyHandler{ctx:ctx.clone(),id:id,conn_id:conn_id.clone(),port:bind_port});
@@ -182,7 +182,7 @@ impl Proxy {
                               log::warn!("IP->{:?},不在白名单列表内,阻止连接",addr);
                               let _=stream.shutdown().await;
                             }else{
-                              let id=last_id.fetch_add(1,Ordering::Relaxed);
+                              let id=last_id.fetch_add(1,Ordering::Relaxed) as u64;
                               self.ids.lock().await.push(id);
                               log::info!("{:?}连接代理端口, id->{}",addr,id);
                               let boot=Bootstrap::build(stream, addr, ProxyEncoder::new(), ProxyDecoder::new(), ProxyHandler{ctx:ctx.clone(),id:id,conn_id:conn_id.clone(),port:bind_port});
