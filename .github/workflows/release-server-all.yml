@@ -79,12 +79,12 @@ jobs:
         with:
           name: ${{ matrix.arch }}
           path: target/${{ matrix.arch }}/release/east*
-          
+
       - uses: thedoctor0/zip-release@0.7.1
         with:
           type: zip
           filename: ${{ matrix.arch }}.zip
-          exclusions: target/${{ matrix.arch }}/release/east*
+          path: target/${{ matrix.arch }}/release/east_server
     
       - name: Release Drafter
         id: create_release
