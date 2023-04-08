@@ -121,22 +121,29 @@ jobs:
           - aarch64-unknown-linux-musl
     steps:
       - uses: actions/checkout@v2
+        with:
+          submodules: true
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
-      - run: cargo install cross --git https://github.com/cross-rs/cross
-      - run: cross build --release --target ${{ matrix.arch }}  --package east_sqlite
+          target: ${{ matrix.arch }}
+      - uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --target ${{ matrix.arch }} --package east_sqlite
+
       - uses: actions/upload-artifact@v2
         with:
           name: ${{ matrix.arch }}
           path: target/${{ matrix.arch }}/release/*.so
+        
       - run: zip -j plugin_sqlite_${{ matrix.arch }} target/${{ matrix.arch }}/release/*.so
     
       - name: Release Drafter
         id: create_release
         uses: release-drafter/release-drafter@v5
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}   
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}        
 
       - name: Upload Release Asset
         id: upload-release-asset 
