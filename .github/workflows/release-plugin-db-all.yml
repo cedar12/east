@@ -127,10 +127,8 @@ jobs:
         with:
           toolchain: stable
           target: ${{ matrix.arch }}
-      - uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --release --target ${{ matrix.arch }} --package east_sqlite
+      - run: cargo install cross --git https://github.com/cross-rs/cross
+      - run: cross build --release --target ${{ matrix.arch }}  --package east_sqlite
 
       - uses: actions/upload-artifact@v2
         with:
