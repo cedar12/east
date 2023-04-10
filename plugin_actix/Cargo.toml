@@ -1,5 +1,5 @@
 [package]
-name = "plugin_actix"
+name = "east_actix"
 version = "0.1.0"
 edition = "2021"
 
@@ -8,6 +8,7 @@ edition = "2021"
 [lib]
 name = "east_actix"
 crate-type = ["dylib"]
+
 
 [dependencies]
 actix-web = "4"
