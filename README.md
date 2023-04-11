@@ -11,16 +11,49 @@
 * 开发语言：rust
 * 异步框架：tokio
 
-## 特性
+## 特
 - 支持tcp、http、rdp、ssh。
 - 支持ip规则过滤阻止连接代理端口。
-- 插件化设计，支持加载第三方插件。
+- 插件化设计，支持加载第三方插件（请谨慎使用第三方插件）。
 - 灵活的配置方式，可自定义端口转发规则、监听地址和转发目标地址等信息。
 - 支持在Web控制台管理转发，可停止启动转发。需使用插件[east_actix](https://gitee.com/cedar12/east/tree/main/plugin_actix)
 - ~~支持在Web控制台显示每一个代理转发的速率、流量统计（待实现）~~
 
 
-默认只支持配置文件配置端口转发规则，如需使用数据库配置文件请使用[数据库插件](#服务端插件)
+默认只支持配置文件配置端口转发规则，如需使用数据库配置请使用[数据库插件](#服务端插件)
+
+## 安装说明
+### 编译环境要求
+
+Rust 版本：1.67.1 或更高版本
+
+### 下载和编译
+你可以从 Github 上下载最新版的 EAST Server 源代码：
+```sh
+git clone https://github.com/cedar12/east.git
+# 编译服务端
+cargo build --release --package east_server
+# 编译代理端
+cargo build --release --package east_agent
+# 编译数据库插件
+cargo build --release --package east_sqlite
+# 编译Web控制台插件
+cargo build --release --package east_actix
+```
+编译完成后，可执行文件位于 target/release 目录中。你可以将该文件拷贝到你的项目目录中。
+
+> 服务端和代理端还需根据需求修改配置文件 conf.yml [参考](#配置文件)
+
+> 数据库插件和Web控制台插件需拷贝到服务端根据配置文件所配置的插件目录
+
+### 运行
+要运行east_server，只需在终端中执行以下命令：
+```sh
+# 运行服务端
+./east_server
+# 运行代理端
+./east_agent
+```
 
 ## 配置文件
 > 配置文件只支持yml格式，服务端、代理端名称均固定为conf.yml
@@ -107,3 +140,8 @@ id: test
 
 ### 许可证
 本项目基于Apache2.0许可证发布。
+
+### 注意
+1. 该开源项目仅供学习和研究使用，使用者应自行承担责任。
+2. 该开源项目不保证无错误或无缺陷。使用者应在自己的风险下使用该项目。
+3. 该开源项目作者不承担任何由于使用该项目而引起的直接或间接损失，包括但不限于利润损失、数据丢失等。
