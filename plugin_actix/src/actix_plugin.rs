@@ -12,7 +12,7 @@ pub struct ActixPlugin;
 
 impl Plugin for ActixPlugin{
     fn version(&self)->String {
-        "v0.0.1".into()
+        "v0.0.2".into()
     }
 
     fn info(&self)->String {
@@ -29,18 +29,20 @@ impl Plugin for ActixPlugin{
 }
 
 impl WebPlugin for ActixPlugin {
-    fn run(&self,bind:String,dp:Box<dyn DatabasePlugin>,ac:Box<dyn AgentControl>,pc:Box<dyn ProxyControl>)->anyhow::Result<()> {
+    fn run(&self,bind:String,dp:Box<dyn DatabasePlugin>,control:(Box<dyn AgentControl>,Box<dyn ProxyControl>),account:(String,String))->anyhow::Result<()> {
         let rt = Runtime::new()?;
         let dp=web::Data::new(dp);
-        let ac=web::Data::new(ac);
-        let pc=web::Data::new(pc);
+        let ac=web::Data::new(control.0);
+        let pc=web::Data::new(control.1);
         let locked_store=web::Data::new(Mutex::new(HashMap::<String,u64>::new()));
+        let account=web::Data::new(account);
         
         let run=HttpServer::new(move|| {
             App::new().app_data(dp.clone())
             .app_data(ac.clone())
             .app_data(pc.clone())
             .app_data(locked_store.clone())
+            .app_data(account.clone())
             // .service(web::resource("/").route(web::get().to(route::index)))
             .service(web::scope("/api")
                 .service(route::agents)

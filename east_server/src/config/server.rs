@@ -50,12 +50,23 @@ impl Database{
 pub struct Web{
     #[serde(default="default_web_bind")]
     pub bind:String,
+    #[serde(default="default_web_username")]
+    pub username:String,
+    #[serde(default="default_web_password")]
+    pub password:String
 }
 
 fn default_web_bind()->String{
     "127.0.0.1:8088".into()
 }
 
+fn default_web_username()->String{
+    "east".into()
+}
+
+fn default_web_password()->String{
+    "East&*!2023".into()
+}
 pub fn default_web()->Web{
-    Web { bind: default_web_bind() }
+    Web { bind: default_web_bind(),username:default_web_username(),password:default_web_password() }
 }

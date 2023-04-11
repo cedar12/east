@@ -76,8 +76,10 @@ impl PluginManager {
                     name,
                     pi,
                 );
-                self.database_config(namec.as_str(),pic.clone()).await;
-                
+                let ret=self.database_config(namec.as_str(),pic.clone()).await;
+                if let Err(e)=ret{
+                    log::error!("{:?}",e);
+                }
                 true
             }
             Err(_) => false,
@@ -97,7 +99,8 @@ impl PluginManager {
               let bind=config::CONF.server.plugin.web.bind.clone();
               log::info!("Web插件[{}]开始启动监听->{}",name,bind);
               tokio::spawn(async move {
-                web_plugin.run(bind, db_plugin,Box::new(AgentControlImpl::new()),Box::new(ProxyControlImpl::new())).unwrap();
+                let account=(config::CONF.server.plugin.web.username.clone(),config::CONF.server.plugin.web.password.clone());
+                web_plugin.run(bind, db_plugin,(Box::new(AgentControlImpl::new()),Box::new(ProxyControlImpl::new())),account).unwrap();
               });
               
             }

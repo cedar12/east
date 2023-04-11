@@ -75,6 +75,10 @@ server:
     web:
       # web插件绑定端口 默认 127.0.0.1:8088
       bind: 127.0.0.1:8088
+      # web插件控制台用户名 默认east
+      username: east
+      # web插件控制台密码 默认East&*!2023
+      password: East&*!2023
 agent:
   # agent连接的id
   test:
