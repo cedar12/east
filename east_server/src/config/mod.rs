@@ -33,12 +33,25 @@ fn default_agent()->HashMap<String,Vec<Agent>>{
 }
 
 fn load_config<T>(path: &str) -> T where T: DeserializeOwned {
-    let f=std::fs::read_to_string(path).unwrap();
+    let mut f_path=String::from(path);
+    if let Some(p)=get_args_path(){
+        f_path=p;
+    }
+    let f=std::fs::read_to_string(f_path).unwrap();
     let root_schema=serde_yaml::from_str::<RootSchema>(&f).unwrap();
 
     let data = serde_json::to_string_pretty(&root_schema).expect("failure to parse RootSchema");
     let config = serde_json::from_str::<T>(&*data).expect(&format!("failure to format json str {}",&data));
     config
 
+}
+
+fn get_args_path()->Option<String>{
+    let args:Vec<String>=std::env::args().collect();
+    if args.len()==2{
+        let a = &args[1];
+        return Some(String::from(a));
+    }
+    None
 }
 
