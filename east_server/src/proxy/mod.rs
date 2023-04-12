@@ -185,7 +185,11 @@ impl Proxy {
                               let id=last_id.fetch_add(1,Ordering::Relaxed) as u64;
                               self.ids.lock().await.push(id);
                               log::info!("{:?}连接代理端口, id->{}",addr,id);
-                              let boot=Bootstrap::build(stream, addr, ProxyEncoder::new(), ProxyDecoder::new(), ProxyHandler{ctx:ctx.clone(),id:id,conn_id:conn_id.clone(),port:bind_port});
+                              let mut boot=Bootstrap::build(stream, addr, ProxyEncoder::new(), ProxyDecoder::new(), ProxyHandler{ctx:ctx.clone(),id:id,conn_id:conn_id.clone(),port:bind_port});
+                              if let Some(max_rate)=agent.max_rate{
+                                boot.capacity(1024);
+                                boot.set_rate_limit((max_rate*1024) as u64).await;
+                              }
                               ctx.set_attribute(format!("{}_{}",STREAM,id), Box::new(Arc::new(Mutex::new(boot)))).await;
                               let conn_id=conn_id.clone();
                               let mut bf=ByteBuf::new_with_capacity(0);
@@ -240,6 +244,7 @@ pub fn use_plugin_match(proxy: east_plugin::proxy::Proxy, addr: String) -> bool 
         bind_port: proxy.bind_port,
         target_host: proxy.target_host,
         target_port: proxy.target_port,
+        max_rate:None,
         whitelist: proxy.whitelist,
     }
     .match_addr(addr)
