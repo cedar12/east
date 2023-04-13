@@ -1,4 +1,4 @@
-name: Release Server ALL
+name: Release Agent ALL
 
 on:
   workflow_dispatch:
@@ -25,14 +25,14 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --release --target ${{ matrix.arch }} --package east_server
+          args: --release --target ${{ matrix.arch }} --package east_agent
 
       - uses: actions/upload-artifact@v2
         with:
           name: ${{ matrix.arch }}
           path: target/${{ matrix.arch }}/release/east*
         
-      - run: zip -j server_${{ matrix.arch }} target/${{ matrix.arch }}/release/east*
+      - run: zip -j agent_${{ matrix.arch }} target/${{ matrix.arch }}/release/east*
     
       - name: Release Drafter
         id: create_release
@@ -47,8 +47,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }} 
-          asset_path: server_${{ matrix.arch }}.zip
-          asset_name: server_${{ matrix.arch }}.zip
+          asset_path: agent_${{ matrix.arch }}.zip
+          asset_name: agent_${{ matrix.arch }}.zip
           asset_content_type: application/zip
 
   build-windows-release:
@@ -73,7 +73,7 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --release --target ${{ matrix.arch }} --package east_server
+          args: --release --target ${{ matrix.arch }} --package east_agent
 
       - uses: actions/upload-artifact@v2
         with:
@@ -85,7 +85,7 @@ jobs:
       - uses: thedoctor0/zip-release@0.7.1
         with:
           type: zip
-          filename: server_${{ matrix.arch }}.zip
+          filename: agent_${{ matrix.arch }}.zip
           path: ./east*.exe
     
       - name: Release Drafter
@@ -101,8 +101,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }} 
-          asset_path: server_${{ matrix.arch }}.zip
-          asset_name: server_${{ matrix.arch }}.zip
+          asset_path: agent_${{ matrix.arch }}.zip
+          asset_name: agent_${{ matrix.arch }}.zip
           asset_content_type: application/zip
 
   build-linux-release:
@@ -125,12 +125,13 @@ jobs:
         with:
           toolchain: stable
       - run: cargo install cross --git https://github.com/cross-rs/cross
-      - run: cross build --release --target ${{ matrix.arch }}  --package east_server
+      - run: cross build --release --target ${{ matrix.arch }}  --package east_agent
       - uses: actions/upload-artifact@v2
         with:
           name: ${{ matrix.arch }}
           path: target/${{ matrix.arch }}/release/east*
-      - run: zip -j server_${{ matrix.arch }} target/${{ matrix.arch }}/release/east*
+      
+      - run: zip -j agent_${{ matrix.arch }} target/${{ matrix.arch }}/release/east*
     
       - name: Release Drafter
         id: create_release
@@ -145,6 +146,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }} 
-          asset_path: server_${{ matrix.arch }}.zip
-          asset_name: server_${{ matrix.arch }}.zip
+          asset_path: agent_${{ matrix.arch }}.zip
+          asset_name: agent_${{ matrix.arch }}.zip
           asset_content_type: application/zip

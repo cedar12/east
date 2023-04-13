@@ -6,5 +6,6 @@ pub struct Proxy{
   pub target_host:String,
   pub target_port:u16,
   pub enable:bool,
-  pub whitelist:Vec<String>
+  pub whitelist:Vec<String>,
+  pub max_rate:Option<u32>
 }

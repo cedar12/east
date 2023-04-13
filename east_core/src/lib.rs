@@ -20,6 +20,8 @@ pub mod message;
 
 pub mod token_bucket;
 
+pub mod throttler;
+
 #[cfg(test)]
 mod tests {
     use super::*;

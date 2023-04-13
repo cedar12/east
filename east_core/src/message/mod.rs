@@ -1,9 +1,7 @@
 use crate::types::TypesEnum;
 
 pub mod msg_encoder;
-pub mod msg_encoder2;
 pub mod msg_decoder;
-pub mod msg_decoder2;
 pub mod msg_handler;
 
 pub const MSG_HEADER_LEN:usize=6;

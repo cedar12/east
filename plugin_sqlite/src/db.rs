@@ -17,6 +17,7 @@ create table if not exists proxy(
   target_host text not null,
   target_port integer not null,
   `enable` integer default '0',
+  max_rate integer default null,
   whitelist text default ''
 );
 ";

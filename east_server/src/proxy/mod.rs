@@ -109,7 +109,6 @@ impl Proxy {
     pub async fn accept(&mut self, conn_id: String, ctx: Context<Msg>) -> Result<()> {
         let l = Arc::clone(&self.listen);
         let mut rv = self.c_rv.lock().await;
-        let self_addr = self.addr.clone();
         let bind_port = self.port;
         if let Some(listen) = l.as_ref() {
             log::info!("开始接受代理连接{}", conn_id);
@@ -120,113 +119,48 @@ impl Proxy {
                   return Ok(())
                 },
                 ret=listen.accept()=>{
-                  let conf=Arc::clone(&config::CONF);
-                  let plugin_result=plugin::database_plugin().await;
-                  match plugin_result{
-                    core::result::Result::Ok((plugin,pi))=>{
-                      // log::info!("使用插件{:?}",pi);
-                      // let e=plugin.config(config::CONF.server.plugin.database.clone().db_config());
-
-                      let (mut stream,addr)=ret.unwrap();
-                      let proxy=plugin.get_proxy(bind_port);
-                      // log::info!("{:?}",proxy);
-                      match proxy{
-                        core::result::Result::Ok((_,proxy))=>{
-                          if !use_plugin_match(proxy.clone(),addr.to_string()){
-                            log::warn!("IP->{:?},不在白名单列表内,阻止连接",addr);
-                            let _=stream.shutdown().await;
-                          }else{
-                            let id=last_id.fetch_add(1,Ordering::Relaxed) as u64;
-                            self.ids.lock().await.push(id);
-                            log::info!("{:?}连接代理端口, id->{}",addr,id);
-                            let boot=Bootstrap::build(stream, addr, ProxyEncoder::new(), ProxyDecoder::new(), ProxyHandler{ctx:ctx.clone(),id:id,conn_id:conn_id.clone(),port:bind_port});
-                            // boot.set_limit(1024).await;
-                            ctx.set_attribute(format!("{}_{}",STREAM,id), Box::new(Arc::new(Mutex::new(boot)))).await;
-                            let conn_id=conn_id.clone();
-                            let mut bf=ByteBuf::new_with_capacity(0);
-                            let host=proxy.target_host.clone();
-                            let port=proxy.target_port;
-                            // bf.write_u8_be(121);
-                            // bf.write_u8_be(201);
-                            // bf.write_u8_be(67);
-                            // bf.write_u8_be(203);
-                            bf.write_string_with_u8_be_len(host);
-                            bf.write_u16_be(port);
-                            bf.write_u64_be(id);
-                            let open_msg=Msg::new(TypesEnum::ProxyOpen,bf.available_bytes().to_vec());
-                            let conn=Conns.get(conn_id.clone()).await;
-                            match conn{
-                                  Some(conn)=>{
-                                    conn.ctx().write(open_msg).await;
-                                  },
-                                  None=>{
-                                    ctx.remove_attribute(PROXY_KEY.into()).await;
-                                    log::warn!("无{}的连接，关闭此监听",conn_id);
-                                    return Ok(())
-                                  }
-                            }
-                          }
-                        },
-                        Err(_)=>{
-
-                        }
-                      }
-                    },
-                    Err(_)=>{
-                      match conf.agent.get(&conn_id){
-                        Some(agents)=>{
-                          let (mut stream,addr)=ret.unwrap();
-                          let a=agents.iter().find(|&x| format!("0.0.0.0:{}",x.bind_port).to_string() == self_addr);
-                          if let Some(agent)=a{
+                    match proxy_conf_adapter(conn_id.clone(),bind_port).await{
+                        Some(agent)=>{
+                            let (mut stream,addr)=ret.unwrap();
                             if !agent.match_addr(addr.to_string()){
-                              log::warn!("IP->{:?},不在白名单列表内,阻止连接",addr);
-                              let _=stream.shutdown().await;
-                            }else{
-                              let id=last_id.fetch_add(1,Ordering::Relaxed) as u64;
-                              self.ids.lock().await.push(id);
-                              log::info!("{:?}连接代理端口, id->{}",addr,id);
-                              let boot=Bootstrap::build(stream, addr, ProxyEncoder::new(), ProxyDecoder::new(), ProxyHandler{ctx:ctx.clone(),id:id,conn_id:conn_id.clone(),port:bind_port});
-                              ctx.set_attribute(format!("{}_{}",STREAM,id), Box::new(Arc::new(Mutex::new(boot)))).await;
-                              let conn_id=conn_id.clone();
-                              let mut bf=ByteBuf::new_with_capacity(0);
-                              let host=agent.target_host.clone();
-                              let port=agent.target_port;
-                              // bf.write_u8_be(121);
-                              // bf.write_u8_be(201);
-                              // bf.write_u8_be(67);
-                              // bf.write_u8_be(203);
-                              bf.write_string_with_u8_be_len(host);
-                              bf.write_u16_be(port);
-                              bf.write_u64_be(id);
-                              let open_msg=Msg::new(TypesEnum::ProxyOpen,bf.available_bytes().to_vec());
-                              let conn=Conns.get(conn_id.clone()).await;
-                              match conn{
-                                    Some(conn)=>{
-                                      conn.ctx().write(open_msg).await;
-                                    },
-                                    None=>{
-                                      ctx.remove_attribute(PROXY_KEY.into()).await;
-                                      log::warn!("无{}的连接，关闭此监听",conn_id);
-                                      return Ok(())
-                                    }
+                                log::warn!("IP->{:?},不在白名单列表内,阻止连接",addr);
+                                let _=stream.shutdown().await;
+                              }else{
+                                let id=last_id.fetch_add(1,Ordering::Relaxed) as u64;
+                                self.ids.lock().await.push(id);
+                                log::info!("{:?}连接代理端口, id->{}",addr,id);
+                                let mut boot=Bootstrap::build(stream, addr, ProxyEncoder::new(), ProxyDecoder::new(), ProxyHandler{ctx:ctx.clone(),id:id,conn_id:conn_id.clone(),port:bind_port});
+                                if let Some(max_rate)=agent.max_rate{
+                                  boot.capacity(1024);
+                                  boot.set_rate_limit((max_rate*1024) as u64).await;
+                                }
+                                ctx.set_attribute(format!("{}_{}",STREAM,id), Box::new(Arc::new(Mutex::new(boot)))).await;
+                                let conn_id=conn_id.clone();
+                                let mut bf=ByteBuf::new_with_capacity(0);
+                                let host=agent.target_host.clone();
+                                let port=agent.target_port;
+                                bf.write_string_with_u8_be_len(host);
+                                bf.write_u16_be(port);
+                                bf.write_u64_be(id);
+                                let open_msg=Msg::new(TypesEnum::ProxyOpen,bf.available_bytes().to_vec());
+                                let conn=Conns.get(conn_id.clone()).await;
+                                match conn{
+                                      Some(conn)=>{
+                                        conn.ctx().write(open_msg).await;
+                                      },
+                                      None=>{
+                                        ctx.remove_attribute(PROXY_KEY.into()).await;
+                                        log::warn!("无{}的连接，关闭此监听",conn_id);
+                                        return Ok(())
+                                      }
+                                }
                               }
-                            }
-
-
-                          }
-
                         },
                         None=>{
-                          log::warn!("无{}配置",conn_id);
-                          return Ok(())
+                            log::warn!("无{}配置",conn_id);
+                            return Ok(())
                         }
-                      }
-
-
                     }
-                  }
-
-
                 }
                 }
             }
@@ -240,9 +174,50 @@ pub fn use_plugin_match(proxy: east_plugin::proxy::Proxy, addr: String) -> bool 
         bind_port: proxy.bind_port,
         target_host: proxy.target_host,
         target_port: proxy.target_port,
+        max_rate:None,
         whitelist: proxy.whitelist,
     }
     .match_addr(addr)
+}
+
+async fn proxy_conf_adapter(conn_id:String,bind_port: u16)->Option<Agent>{
+    let conf=Arc::clone(&config::CONF);
+    let plugin_result=plugin::database_plugin().await;
+    match plugin_result{
+        core::result::Result::Ok((plugin,pi))=>{
+            let proxy=plugin.get_proxy(bind_port);
+            match proxy{
+                core::result::Result::Ok((_,proxy))=>{
+                    return Some(Agent{
+                        bind_port: proxy.bind_port,
+                        target_host: proxy.target_host,
+                        target_port: proxy.target_port,
+                        max_rate:None,
+                        whitelist: proxy.whitelist,
+                    })
+                },
+                Err(e)=>{
+                    log::error!("获取端口{}的数据错误: {}",bind_port,e);
+                }
+            }
+        },
+        Err(_)=>{
+            match conf.agent.get(&conn_id){
+                Some(agents)=>{
+                    let a=agents.iter().find(|&x| x.bind_port==bind_port);
+                    if let Some(agent)=a{
+                        return Some(agent.clone())
+                    }
+
+                },
+                None=>{
+                    log::warn!("无{}配置",conn_id);
+                }
+            }
+
+        }
+    }
+    None
 }
 
 pub async fn remove(conn_id: &String) {

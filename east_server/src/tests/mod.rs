@@ -1,6 +1,7 @@
 use std::{sync::Arc, any::{Any, TypeId}, path::{PathBuf, Path}};
 
 use east_plugin::plugin::{Plugin, DatabasePlugin, Type, DBConfig};
+use tokio::{fs::File, io::{self, AsyncReadExt}};
 
 
 use crate::{config::{self, agent::Agent}, plugin};
@@ -86,6 +87,7 @@ fn test_ip(){
         bind_port: 2000,
         target_host: "".into(),
         target_port: 123,
+        max_rate:None,
         whitelist: vec!["192.168.1.0/24".into(),"127.0.0.1/16".into()],
     };
     let r=a.match_addr("127.0.1.1".into());
@@ -124,3 +126,4 @@ async fn test_rate_limiter(){
     bucket.take(128*1024+1).await;
 
 }
+

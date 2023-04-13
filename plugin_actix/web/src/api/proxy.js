@@ -40,6 +40,7 @@ import request from './request'
  * @param {string} data.target_host
  * @param {number} data.target_port
  * @param {boolean} data.enable
+ * @param {number} [data.max_rate]
  * @param {Array<string>} data.whitelist
  * @returns 
  */

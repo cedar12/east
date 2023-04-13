@@ -22,7 +22,11 @@ fn default_server()->String{
 }
 
 fn load_config<T>(path: &str) -> T where T: DeserializeOwned {
-    let root_schema=serde_yaml::from_str::<RootSchema>(&std::fs::read_to_string(path).expect(&format!("failure read file {}", path))).unwrap();
+    let mut f_path=String::from(path);
+    if let Some(p)=get_args_path(){
+        f_path=p;
+    }
+    let root_schema=serde_yaml::from_str::<RootSchema>(&std::fs::read_to_string(f_path).expect(&format!("failure read file {}", path))).unwrap();
 
     let data = serde_json::to_string_pretty(&root_schema).expect("failure to parse RootSchema");
     let config = serde_json::from_str::<T>(&*data).expect(&format!("failure to format json str {}",&data));
@@ -30,3 +34,11 @@ fn load_config<T>(path: &str) -> T where T: DeserializeOwned {
 
 }
 
+fn get_args_path()->Option<String>{
+    let args:Vec<String>=std::env::args().collect();
+    if args.len()==2{
+        let a = &args[1];
+        return Some(String::from(a));
+    }
+    None
+}

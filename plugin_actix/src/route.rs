@@ -186,12 +186,14 @@ const MAX_ERR_COUNT:u64=5;
 
 
 #[post("/login")]
-async fn login(body: web::Json<User>,data: web::Data<Box<dyn DatabasePlugin>>,store:web::Data<Mutex<HashMap::<String,u64>>>) -> impl Responder {
-    let result=data.get_user(body.username.clone());
+async fn login(body: web::Json<User>,account: web::Data<(String,String)>,data: web::Data<Box<dyn DatabasePlugin>>,store:web::Data<Mutex<HashMap::<String,u64>>>) -> impl Responder {
     let mut store=store.lock().unwrap();
-    // println!("store->{:?}",store);
-    let locked_key=format!("locked_{}",body.username.clone());
-    let count_key=format!("count_{}",body.username.clone());
+    
+    let username=body.username.clone();
+    let result=data.get_user(username.clone());
+    
+    let locked_key=format!("locked_{}",username.clone());
+    let count_key=format!("count_{}",username.clone());
     let secs=SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
     let secs=secs.as_secs();
     if let Some(t)=store.get(&locked_key){
@@ -227,9 +229,36 @@ async fn login(body: web::Json<User>,data: web::Data<Box<dyn DatabasePlugin>>,st
             }
             
         },
-        Err(e)=>HttpResponse::Ok()
-        .content_type("application/json")
-        .json(Resp{code:4000,info:format!("用户不存在{:?}",e),data:()})
+        Err(e)=>{
+            if username==account.0{
+                if account.1==body.password.clone(){
+                    store.remove(&locked_key);
+                    store.remove(&count_key);
+                    let token = auth::create_jwt(username.clone());
+                    HttpResponse::Ok()
+                    .content_type("application/json")
+                    .json(Resp{code:2000,info:"成功".into(),data:token})
+                }else{
+                    let mut count=1u64;
+                    if let Some(c)=store.get(&count_key){
+                        count=c+1;
+                    }
+                    store.insert(count_key,count);
+                    if count>=MAX_ERR_COUNT{
+                        store.insert(locked_key, secs);
+                        return HttpResponse::Ok().json(Resp{code:4006,info:"用户已被锁定".into(),data:()})
+                    }
+                    
+                    HttpResponse::Ok()
+                    .content_type("application/json")
+                    .json(Resp{code:4000,info:format!("{}密码错误",username),data:()})
+                }
+            }else{
+                HttpResponse::Ok()
+                .content_type("application/json")
+                .json(Resp{code:4000,info:format!("用户不存在{:?}",e),data:()})
+            }
+        }
     }
     
 }

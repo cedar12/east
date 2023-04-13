@@ -73,7 +73,7 @@ pub trait DatabasePlugin:Plugin{
 }
 
 pub trait WebPlugin:Plugin{
-  fn run(&self,bind:String,dp:Box<dyn DatabasePlugin>,agent_control:Box<dyn AgentControl>,proxy_control:Box<dyn ProxyControl>)->anyhow::Result<()>;
+  fn run(&self,bind:String,dp:Box<dyn DatabasePlugin>,control:(Box<dyn AgentControl>,Box<dyn ProxyControl>),account:(String,String))->anyhow::Result<()>;
 }
 
 #[derive(Debug,Clone,PartialEq, Eq)]

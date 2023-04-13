@@ -2,6 +2,7 @@ use std::{sync::Arc, time::{SystemTime, UNIX_EPOCH}};
 
 use east_core::{handler::Handler, message::Msg, context::Context, types::TypesEnum, byte_buf::ByteBuf, bootstrap::Bootstrap, token_bucket::TokenBucket};
 use async_trait::async_trait;
+use east_plugin::agent::Agent;
 use tokio::{net::TcpStream, spawn, sync::Mutex};
 
 use crate::{connection, proxy::{Proxy, self, ProxyMsg, proxy_encoder::ProxyEncoder, proxy_decoder::ProxyDecoder, proxy_handler::ProxyHandler}, config, plugin};
@@ -31,114 +32,59 @@ impl Handler<Msg> for ServerHandler{
       TypesEnum::Auth=>{
         let s=String::from_utf8(msg.data).unwrap();
         log::info!("{}请求认证",s);
-        let plugin_result=plugin::database_plugin().await;
-        match plugin_result{
-          Ok((plugin,pi))=>{
-            // log::info!("使用插件{:?}",pi);
+        match agent_adapter(s.clone()).await{
+          Some(agent)=>{
             let id=s.clone();
-            let agent=plugin.get_agent(id);
-            match agent{
-              Ok(agent)=>{
-                let id=s.clone();
-                let id2=s.clone();
-                let id3=s.clone();
-                
-                let opt=connection::Conns.get(s).await;
-                match opt{
-                  Some(c)=>{
-                    log::info!("{:?}已经连接了，不能重复连接",c);
-                  }
-                  None=>{
-                    ctx.set_attribute("id".into(), Box::new(id2)).await;
-                    let conn=connection::Connection::new(ctx.clone(),id);
-                    connection::Conns.insert(id3.clone(),conn).await;
-                    let msg=Msg::new(TypesEnum::Auth,vec![]);
-                    ctx.write(msg).await;
-                    for a in agent.proxy.iter(){
-                      if !a.enable{
-                        continue;
-                      }
-                      let bind_port=a.bind_port.clone();
-                      let c=ctx.clone();
-                      let id=id3.clone();
-                      ctx.set_attribute("id".into(), Box::new(id)).await;
-                      let id=id3.clone();
-                      spawn(async move{
-                          if let Some(conn)=connection::Conns.get(id.clone()).await{
-                          let mut proxy=Proxy::new(bind_port);
-                          conn.insert(bind_port,proxy.clone()).await;
-                          if let Err(e)=proxy.listen().await{
-                            log::error!("{:?}",e);
-                            return
-                          }
-                          if let Err(e)=proxy.accept(id,c.clone()).await{
-                            log::error!("{:?}",e);
-                          }
-                        }
-                        
-                      });
-                    }
-                    
-                  }
-                }
-
-              },
-              Err(_)=>{
-                log::warn!("无{}配置，认证不通过 {}",s,ctx.addr());
+            let id2=s.clone();
+            let id3=s.clone();
+            let opt=connection::Conns.get(s).await;
+            match opt{
+              Some(c)=>{
+                log::info!("{:?}已经连接了，不能重复连接",c);
                 ctx.close().await;
+                return
               }
-            }
-          },
-          Err(_)=>{
-            match config::CONF.agent.get(&s){
-              Some(agents)=>{
-                let id=s.clone();
-                let id2=s.clone();
-                let id3=s.clone();
-                
-                let opt=connection::Conns.get(s).await;
-                match opt{
-                  Some(c)=>{
-                    log::info!("{:?}已经连接了，不能重复连接",c);
-                  }
-                  None=>{
-                    ctx.set_attribute("id".into(), Box::new(id2)).await;
-                    let conn=connection::Connection::new(ctx.clone(),id);
-                    connection::Conns.insert(id3.clone(),conn).await;
-                    let msg=Msg::new(TypesEnum::Auth,vec![]);
-                    ctx.write(msg).await;
-                    for a in agents.iter(){
-                      let bind_port=a.bind_port.clone();
-                      let id3=id3.clone();
-                      let c=ctx.clone();
-                      ctx.set_attribute("id".into(), Box::new(id3.clone())).await;
-                      spawn(async move{
-                        if let Some(conn)=connection::Conns.get(id3.clone()).await{
-                          let mut proxy=Proxy::new(bind_port);
-                          conn.insert(bind_port,proxy.clone()).await;
-                          if let Err(e)=proxy.listen().await{
-                            log::error!("{:?}",e);
-                            return
-                          }
-                          if let Err(e)=proxy.accept(id3,c.clone()).await{
-                            log::error!("{:?}",e);
-                          }
-                        }
-                      });
-                    }
-                    
-                  }
-                }
-              },
               None=>{
-                log::warn!("无{}配置，认证不通过",s);
-                ctx.close().await;
+                ctx.set_attribute("id".into(), Box::new(id2)).await;
+                let conn=connection::Connection::new(ctx.clone(),id);
+                connection::Conns.insert(id3.clone(),conn).await;
+                let msg=Msg::new(TypesEnum::Auth,vec![]);
+                ctx.write(msg).await;
+                for a in agent.proxy.iter(){
+                  if !a.enable{
+                    continue;
+                  }
+                  let bind_port=a.bind_port.clone();
+                  let c=ctx.clone();
+                  let id=id3.clone();
+                  ctx.set_attribute("id".into(), Box::new(id)).await;
+                  let id=id3.clone();
+                  spawn(async move{
+                      if let Some(conn)=connection::Conns.get(id.clone()).await{
+                      let mut proxy=Proxy::new(bind_port);
+                      conn.insert(bind_port,proxy.clone()).await;
+                      if let Err(e)=proxy.listen().await{
+                        log::error!("{:?}",e);
+                        return
+                      }
+                      if let Err(e)=proxy.accept(id,c.clone()).await{
+                        log::error!("{:?}",e);
+                      }
+                    }
+                    
+                  });
+                }
+                
               }
             }
+            
+          },
+          None=>{
+            log::warn!("无{}配置，认证不通过",s);
+            ctx.close().await;
           }
         }
         
-       
       },
       TypesEnum::ProxyOpen=>{
         
@@ -231,4 +177,50 @@ impl Handler<Msg> for ServerHandler{
     }
     ctx.remove_attribute("id".into()).await;
   }
+}
+
+
+async fn agent_adapter(id:String)->Option<Agent>{
+  use east_plugin::proxy::Proxy;
+  let plugin_result=plugin::database_plugin().await;
+  match plugin_result{
+    Ok((plugin,_pi))=>{
+      // log::info!("使用插件{:?}",pi);
+      let agent=plugin.get_agent(id.clone());
+      match agent{
+        Ok(agent)=>{
+          // log::info!("{:?}",agent);
+          return Some(agent)
+        },
+        Err(e)=>{
+          log::error!("{}",e);
+          return None
+        }
+      }
+    },
+    Err(_)=>{
+      match config::CONF.agent.get(&id.clone()){
+        Some(agents)=>{
+          // log::info!("{:?}",agents);
+          return Some(
+            Agent{
+              id:id.clone(),
+              name: id.clone(),
+              proxy: agents.iter().map(move |a|Proxy{
+                bind_port: a.bind_port,
+                target_host: a.target_host.clone(),
+                target_port: a.target_port,
+                enable: true,
+                whitelist: a.whitelist.clone(),
+                max_rate: a.max_rate,
+              }).collect(),
+            })
+        },
+        None=>{
+          return None
+        }
+      }
+    }
+  }
+
 }

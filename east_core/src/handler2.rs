@@ -1,7 +1,9 @@
-use crate::context2::Context;
+use crate::context::Context;
+use async_trait::async_trait;
 
-pub trait Handler<T>{
-  fn active(&self,ctx:&Context<T>);
-  fn read(&self,ctx:&Context<T>,msg:T);
-  fn close(&self,ctx:&Context<T>);
+#[async_trait]
+pub trait HandlerMut<T>{
+  async fn active(&mut self,ctx:&Context<T>);
+  async fn read(&mut self,ctx:&Context<T>,msg:T);
+  async fn close(&mut self,ctx:&Context<T>);
 }

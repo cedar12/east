@@ -27,7 +27,7 @@ impl DatabasePlugin for SqlitePlugin {
             }
             for (_,agent) in agents.iter_mut().enumerate(){
                 let id=agent.clone().id;
-                let mut stmt=conn.prepare("select bind_port,target_host,target_port,enable,whitelist from proxy where agent_id=?").unwrap();
+                let mut stmt=conn.prepare("select bind_port,target_host,target_port,enable,whitelist,max_rate from proxy where agent_id=?").unwrap();
                 let proxy_iter = stmt.query_map([id], |row| {
                     let whitelist:String=row.get(4)?;
                     let v:Vec<&str>=whitelist.split(",").collect();
@@ -38,6 +38,7 @@ impl DatabasePlugin for SqlitePlugin {
                         target_port: row.get(2)?,
                         enable: row.get(3)?,
                         whitelist: v,
+                        max_rate: row.get(5)?,
                     })
                 });
                 if let Ok(proxy_iter)=proxy_iter{
@@ -88,8 +89,8 @@ impl DatabasePlugin for SqlitePlugin {
         let conn=CONN.lock().unwrap();
         if let Some(conn)=conn.as_ref(){
             let whitelist=proxy.whitelist.join(",");
-            let mut stmt = conn.prepare("insert into proxy values(?,?,?,?,?,?)")?;
-            stmt.execute((proxy.bind_port,agent_id,proxy.target_host,proxy.target_port,proxy.enable,whitelist))?;
+            let mut stmt = conn.prepare("insert into proxy values(?,?,?,?,?,?,?)")?;
+            stmt.execute((proxy.bind_port,agent_id,proxy.target_host,proxy.target_port,proxy.enable,proxy.max_rate,whitelist))?;
         }
         Ok(())
     }
@@ -117,7 +118,7 @@ impl DatabasePlugin for SqlitePlugin {
             for a in agent_iter{
                 let mut agent=a?;
                 let id=agent.clone().id;
-                let mut stmt=conn.prepare("select bind_port,target_host,target_port,enable,whitelist from proxy where agent_id=?").unwrap();
+                let mut stmt=conn.prepare("select bind_port,target_host,target_port,enable,whitelist,max_rate from proxy where agent_id=?").unwrap();
                 let proxy_iter = stmt.query_map([id], |row| {
                     let whitelist:String=row.get(4)?;
                     let v:Vec<&str>=whitelist.split(",").collect();
@@ -128,6 +129,7 @@ impl DatabasePlugin for SqlitePlugin {
                         target_port: row.get(2)?,
                         enable: row.get(3)?,
                         whitelist: v,
+                        max_rate: row.get(5).unwrap(),
                     })
                 });
                 if let Ok(proxy_iter)=proxy_iter{
@@ -147,7 +149,7 @@ impl DatabasePlugin for SqlitePlugin {
     fn get_proxy(&self,bind_port:u16)->anyhow::Result<(String,Proxy)> {
         let conn=CONN.lock().unwrap();
         if let Some(conn)=conn.as_ref(){
-            let mut stmt = conn.prepare("SELECT agent_id,bind_port,target_host,target_port,enable,whitelist from proxy where bind_port=?")?;
+            let mut stmt = conn.prepare("SELECT agent_id,bind_port,target_host,target_port,enable,whitelist,max_rate from proxy where bind_port=?")?;
             let proxy_iter = stmt.query_map([bind_port], |row| {
                 let whiltelist:String=row.get(5).unwrap();
                 let ve:Vec<&str>=whiltelist.split(",").collect();
@@ -162,6 +164,7 @@ impl DatabasePlugin for SqlitePlugin {
                     row.get(3).unwrap(),
                     row.get(4).unwrap(),
                     v,
+                    row.get(6).unwrap(),
                 ))
             })?;
             for proxy in proxy_iter{
@@ -172,6 +175,7 @@ impl DatabasePlugin for SqlitePlugin {
                     target_port: proxy.3,
                     enable: proxy.4,
                     whitelist: proxy.5,
+                    max_rate: proxy.6,
                 }))
             }
         }
@@ -191,7 +195,7 @@ impl DatabasePlugin for SqlitePlugin {
         let conn=CONN.lock().unwrap();
         let mut proxys=vec![];
         if let Some(conn)=conn.as_ref(){
-            let mut stmt = conn.prepare("SELECT bind_port,target_host,target_port,enable,whitelist from proxy where agent_id=?")?;
+            let mut stmt = conn.prepare("SELECT bind_port,target_host,target_port,enable,whitelist,max_rate from proxy where agent_id=?")?;
             let proxy_iter = stmt.query_map([agent_id], |row| {
                 let whiltelist:String=row.get(4).unwrap();
                 let ve:Vec<&str>=whiltelist.split(",").collect();
@@ -206,6 +210,7 @@ impl DatabasePlugin for SqlitePlugin {
                     target_port: row.get(2).unwrap(),
                     enable: row.get(3).unwrap(),
                     whitelist: v,
+                    max_rate: row.get(5).unwrap(),
                 })
             })?;
             for proxy in proxy_iter{
@@ -219,8 +224,8 @@ impl DatabasePlugin for SqlitePlugin {
     fn modify_proxy(&self,proxy:Proxy)->anyhow::Result<()> {
         let conn=CONN.lock().unwrap();
         if let Some(conn)=conn.as_ref(){
-            let mut stmt = conn.prepare("update proxy set target_host=?,target_port=?,enable=? where bind_port=?")?;
-            stmt.execute((proxy.target_host,proxy.target_port,proxy.enable,proxy.bind_port))?;
+            let mut stmt = conn.prepare("update proxy set target_host=?,target_port=?,enable=?,max_rate=? where bind_port=?")?;
+            stmt.execute((proxy.target_host,proxy.target_port,proxy.enable,proxy.max_rate,proxy.bind_port))?;
         }
         Ok(())
     }
@@ -269,7 +274,7 @@ impl DatabasePlugin for SqlitePlugin {
 impl Plugin for SqlitePlugin{
 
     fn version(&self)->String {
-        "v0.0.1".into()
+        "v0.0.2".into()
     }
 
     fn info(&self)->String {
