@@ -3,7 +3,7 @@ use std::net::Ipv4Addr;
 use serde::{Serialize, Deserialize};
 
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug,Clone)]
 pub struct Agent{
    pub bind_port:u16,
    #[serde(default = "default_host")]

@@ -17,6 +17,7 @@
 - 插件化设计，支持加载第三方插件（请谨慎使用第三方插件）。
 - 灵活的配置方式，可自定义端口转发规则、监听地址和转发目标地址等信息。
 - 支持在Web控制台管理转发，可停止启动转发。需使用插件[east_actix](https://github.com/cedar12/east/tree/main/plugin_actix)
+- 支持转发限速
 - ~~支持在Web控制台显示每一个代理转发的速率、流量统计（待实现）~~
 
 
@@ -102,6 +103,8 @@ agent:
     - bind_port: 8989
       target_host: 127.0.0.1
       target_port: 5880
+      # 限制最大速率64kb/s 默认不限速
+      max_rate: 64
 ```
 
 
@@ -149,7 +152,7 @@ id: test
 ### 下载使用
 * [下载地址](https://github.com/cedar12/east/releases/latest)
 
-下载分为server（服务端）、agent（代理端），进入服务端目录或代理端目录配置conf.yml文件双击运行exe即可
+下载分为server（服务端）、agent（代理端），进入服务端目录或代理端目录配置conf.yml文件运行即可
 
 ### 许可证
 本项目基于Apache2.0许可证发布。
