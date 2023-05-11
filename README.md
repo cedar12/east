@@ -177,6 +177,12 @@ id: test
 
 下载分为server（服务端）、agent（代理端），进入服务端目录或代理端目录配置conf.yml文件运行即可
 
+### 帮助
+#### windows系统运行时提示丢失``VCRUNTIME140.dll``
+> 下载[Microsoft Visual C++ 2015 Redistributable](https://www.microsoft.com/en-us/download/details.aspx?id=53840)安装即可
+#### windwos系统注册成系统服务
+> 下载[nssm](http://www.nssm.cc/download)注册成系统服务
+
 ### 许可证
 
 本项目基于Apache2.0许可证发布。

@@ -16,10 +16,9 @@ use crate::{
 };
 use anyhow::{ Ok, Result};
 use east_core::{
-    bootstrap::Bootstrap, byte_buf::ByteBuf, context::Context, message::Msg, types::TypesEnum,
+    bootstrap2::Bootstrap, byte_buf::ByteBuf, context::Context, message::Msg, types::TypesEnum,
 };
 use tokio::sync::mpsc;
-use tokio::net::TcpStream;
 use tokio::{
     io::AsyncWriteExt,
     net::TcpListener,
