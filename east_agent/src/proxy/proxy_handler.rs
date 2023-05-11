@@ -11,7 +11,7 @@ pub struct ProxyHandler{
 
 #[async_trait::async_trait]
 impl Handler<Vec<u8>> for ProxyHandler{
-  async fn read(&self, ctx: &Context<Vec<u8>>, msg: Vec<u8>) {
+  async fn read(&mut self, ctx: &Context<Vec<u8>>, msg: Vec<u8>) {
     // println!("proxy read len {:?}", msg.len());
     let mut bf=ByteBuf::new_with_capacity(0);
     bf.write_u64_be(self.id);
@@ -19,7 +19,7 @@ impl Handler<Vec<u8>> for ProxyHandler{
     let m=Msg::new(TypesEnum::ProxyForward, bf.available_bytes().to_vec());
     self.ctx.write(m).await;
   }
-  async fn active(&self, ctx: &Context<Vec<u8>>) {
+  async fn active(&mut self, ctx: &Context<Vec<u8>>) {
     log::info!("proxy active {:?}", ctx.addr());
     proxy::ProxyMap.lock().await.insert(self.id,ctx.clone());
     let mut bf=ByteBuf::new_with_capacity(0);
@@ -28,7 +28,7 @@ impl Handler<Vec<u8>> for ProxyHandler{
     self.ctx.write(msg).await;
     log::info!("回复代理打开成功")
   }
-  async fn close(&self,ctx:&Context<Vec<u8>>){
+  async fn close(&mut self,ctx:&Context<Vec<u8>>){
     log::info!("close {:?} {}", ctx.addr(),self.id);
     proxy::ProxyMap.lock().await.remove(&self.id);
     // println!("ProxyMap {:?} ", proxy::ProxyMap.lock().await);

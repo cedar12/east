@@ -46,6 +46,16 @@ impl AgentControl for AgentControlImpl{
       });
       
     }
+
+    fn send_file(&self,agent_id:String,path:String,target:String) {
+      let rt=tokio::runtime::Runtime::new().unwrap();
+      rt.block_on(async move {
+        let signal=connection::FileSignal.lock().await;
+        if let Some(tx)=signal.as_ref(){
+          tx.send((agent_id,path,target)).await.unwrap();
+        }
+      });
+    }
 }
 
 

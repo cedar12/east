@@ -1,29 +1,25 @@
-use std::{sync::Arc};
+use std::{sync::Arc, path::Path, fs};
 
-use east_core::{handler::Handler, message::Msg, context::Context, types::TypesEnum, byte_buf::ByteBuf, bootstrap::Bootstrap};
-use tokio::{net::TcpStream, spawn, time, task::JoinHandle, sync::{broadcast::{Sender,Receiver}, self}};
+use east_core::{handler::Handler, message::Msg, context::Context, types::TypesEnum, byte_buf::ByteBuf, bootstrap2::Bootstrap, handler2::HandlerMut};
+use tokio::{net::TcpStream, spawn, time, task::JoinHandle, sync::{broadcast::{Sender,Receiver}, self}, fs::{File, OpenOptions}, io::{BufWriter, AsyncWriteExt}};
 
 use crate::{proxy::{proxy_encoder::ProxyEncoder, proxy_decoder::ProxyDecoder, proxy_handler::ProxyHandler, self}, config};
 
-lazy_static!{
-  pub static ref CTX:Option<Context<Msg>>=None;
-}
 
 pub struct AgentHandler {
-  tx:Sender<()>,
-  rv:Receiver<()>
+  tx:Sender<()>
 }
 
 impl AgentHandler{
   pub fn new()->Self{
-    let (tx,rv)=sync::broadcast::channel(1);
-    AgentHandler { tx: tx, rv: rv }
+    let (tx,_)=sync::broadcast::channel(1);
+    AgentHandler { tx: tx}
   }
 }
 
 #[async_trait::async_trait]
 impl Handler<Msg> for AgentHandler {
-    async fn read(&self, ctx: &Context<Msg>, msg: Msg) {
+    async fn read(&mut self, ctx: &Context<Msg>, msg: Msg) {
         // println!("read len {:?}", msg.data.len());
         match msg.msg_type{
           TypesEnum::Auth=>{
@@ -68,18 +64,66 @@ impl Handler<Msg> for AgentHandler {
             
           },
           TypesEnum::Heartbeat=>{
+          },
+          TypesEnum::FileInfo=>{
+            let mut bf=ByteBuf::new_from(&msg.data);
+            let file_size=bf.read_u64_be();
+            let file_path=bf.read_string(msg.data.len()-8);
+            let fp=file_path.clone();
+            if Path::new(fp.clone().as_str()).exists() && fs::metadata(fp.clone()).unwrap().is_file() {
+                println!("File {} exists.", fp);
+                let msg=Msg::new(TypesEnum::FileInfoAsk, format!("{}文件存在",fp).as_bytes().to_vec());
+                ctx.write(msg).await;
+                return
+            }
+            log::info!("创建文件{}", fp);
+            if let Err(e)=File::create(fp).await{
+              let msg=Msg::new(TypesEnum::FileInfoAsk, e.to_string().as_bytes().to_vec());
+              ctx.write(msg).await;
+              return
+            }
+            let fi=FileInfo{size:file_size,path:file_path};
+            ctx.set_attribute("fileinfo".into(), Box::new(fi.clone())).await;
+            let msg=Msg::new(TypesEnum::FileInfoAsk, vec![]);
+            ctx.write(msg).await;
+            log::info!("接收文件信息: {:?}", fi);
+          },
+          TypesEnum::File=>{
+            log::info!("接收文件数据大小: {}",msg.data.len());
+            let file_info=ctx.get_attribute("fileinfo".into()).await;
+            let file_info=file_info.lock().await;
+            if let Some(info)=file_info.downcast_ref::<FileInfo>(){
+              log::info!("接收文件信息: {:?}",info);
+              let ctx=ctx.clone();
+              let info=info.clone();
+              spawn(async move{
+                if let Err(e)=append_file(info.path.as_str(),msg.data).await{
+                  log::error!("{}",e);
+                  let msg=Msg::new(TypesEnum::FileAsk, e.to_string().as_bytes().to_vec());
+                  ctx.write(msg).await;
+                  return
+                }
+              });
+              
+              //let msg=Msg::new(TypesEnum::FileAsk, vec![]);
+              //ctx.write(msg).await;
+              return
+            }
+            let msg=Msg::new(TypesEnum::FileAsk, "未接收到文件信息".as_bytes().to_vec());
+            ctx.write(msg).await;
           }
+          _=>{}
         }
-        // ctx.write(m).await;
+
     }
-    async fn active(&self, ctx: &Context<Msg>) {
+    async fn active(&mut self, ctx: &Context<Msg>) {
         log::info!("已连接 {:?}", ctx.addr());
         let conf=Arc::clone(&config::CONF);
         let id=conf.id.clone();
         let msg=Msg::new(TypesEnum::Auth,id.as_bytes().to_vec());
         ctx.write(msg).await;
     }
-    async fn close(&self, ctx: &Context<Msg>) {
+    async fn close(&mut self, ctx: &Context<Msg>) {
         log::info!("关闭 {:?} ", ctx.addr());
         let _=self.tx.send(());
         let mut map=proxy::ProxyMap.lock().await;
@@ -88,6 +132,16 @@ impl Handler<Msg> for AgentHandler {
         }
         map.clear();
     }
+}
+
+async fn append_file(file_path:&str,data:Vec<u8>)->std::io::Result<()>{
+  let mut options = OpenOptions::new();
+  options.append(true).create(true);
+  let file = options.open(file_path).await?;
+  let mut writer = BufWriter::new(file);
+  writer.write_all(&data).await?;
+  writer.flush().await?;
+  Ok(())
 }
 
 async fn proxy_open(msg:Msg,ctx: Context<Msg>){
@@ -101,7 +155,7 @@ async fn proxy_open(msg:Msg,ctx: Context<Msg>){
   let port = bf.read_u16_be();
   let addr=format!("{}:{}",host,port).to_string();
   let id=bf.read_u64_be();
-  log::info!("fid->{},ip->{}",id,addr);
+  //log::info!("fid->{},ip->{}",id,addr);
   let stream=TcpStream::connect(addr).await;
   match stream{
     Ok(stream)=>{
@@ -145,3 +199,12 @@ async fn proxy_forward(msg:Msg){
     }
   };
 }
+
+
+#[derive(Debug,Clone)]
+struct FileInfo{
+  pub size:u64,
+  pub path:String
+}
+
+

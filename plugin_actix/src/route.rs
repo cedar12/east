@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::io::Write;
 use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -7,12 +8,22 @@ use east_plugin::control::{AgentControl, ProxyControl};
 use east_plugin::{plugin::DatabasePlugin, proxy::Proxy};
 use east_plugin::agent::Agent;
 use serde::{Serialize, Deserialize};
+use uuid::Uuid;
 
 use crate::model::agent::AgentModel;
 use crate::auth;
 use crate::user_data::UserData;
 use rust_embed::RustEmbed;
 use mime_guess::from_path;
+
+use actix_multipart::{
+    form::{
+        tempfile::{TempFile, TempFileConfig},
+        MultipartForm,
+    },
+    Multipart,
+};
+use futures_util::TryStreamExt as _;
 
 #[derive(RustEmbed)]
 #[folder = "static/"]
@@ -273,3 +284,43 @@ async fn login_user_info(user: Option<UserData>) -> impl Responder {
     }
 }
 
+
+
+
+#[post("/agent/{agent_id}/file")]
+pub async fn send_file(user: UserData,mut payload: actix_multipart::Multipart,agent_id:web::Path<String>,data: web::Data<Box<dyn DatabasePlugin>>,ac: web::Data<Box<dyn AgentControl>>) -> Result<HttpResponse, actix_web::Error> {
+    while let Some(mut field) = payload.try_next().await? {
+        // A multipart/form-data stream has to contain `content_disposition`
+        let content_disposition = field.content_disposition();
+
+        let filename = content_disposition
+            .get_filename()
+            .map_or_else(|| Uuid::new_v4().to_string(), sanitize_filename::sanitize);
+        let filepath = format!("./tmp/{filename}");
+        let filepath2= filepath.clone();
+        let target = format!("./tmp/{filename}");
+
+        // File::create is blocking operation, use threadpool
+        let mut f = web::block(|| std::fs::File::create(filepath2)).await??;
+
+        // Field in turn is stream of *Bytes* object
+        while let Some(chunk) = field.try_next().await? {
+            // filesystem operations are blocking, we have to use threadpool
+            f = web::block(move || f.write_all(&chunk).map(|_| f)).await??;
+        }
+            
+        let result=data.get_agent(agent_id.clone());
+        return match result{
+            Ok(agent)=>{
+                ac.send_file(agent.id, filepath, target);
+                Ok(HttpResponse::Ok().json(Resp{code:2000,info:"已开始发送".into(),data:()}))
+            },
+            Err(e)=>Ok(HttpResponse::Ok()
+            .content_type("application/json")
+            .json(Resp{code:4000,info:format!("不存在的代理{:?}",e),data:()}))
+        }
+        
+    }
+
+    Ok(HttpResponse::Ok().json(Resp{code:4000,info:"未发送".into(),data:()}))
+}

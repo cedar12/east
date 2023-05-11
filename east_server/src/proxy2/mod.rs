@@ -5,21 +5,20 @@ use std::{
         Arc,
     }
 };
-
+use crate::connection2 as connection;
+use crate::connection2::Conns;
 use crate::{
     config::{self, agent::Agent},
-    connection::{self, Conns},
     plugin,
-    proxy::{
+    proxy2::{
         proxy_decoder::ProxyDecoder, proxy_encoder::ProxyEncoder, proxy_handler::ProxyHandler,
     },
 };
 use anyhow::{ Ok, Result};
 use east_core::{
-    bootstrap::Bootstrap, byte_buf::ByteBuf, context::Context, message::Msg, types::TypesEnum,
+    bootstrap2::{Bootstrap, Bootstrap2}, byte_buf::ByteBuf, context2::Context, message::Msg, types::TypesEnum,
 };
 use tokio::sync::mpsc;
-use tokio::net::TcpStream;
 use tokio::{
     io::AsyncWriteExt,
     net::TcpListener,
@@ -106,7 +105,7 @@ impl Proxy {
         self.c_tx.lock().await.send(()).unwrap();
     }
 
-    pub async fn accept(&mut self, conn_id: String, ctx: Context<Msg>) -> Result<()> {
+    pub async fn accept(&mut self, conn_id: String, ctx: &mut Context<Msg>) -> Result<()> {
         let l = Arc::clone(&self.listen);
         let mut rv = self.c_rv.lock().await;
         let bind_port = self.port;
@@ -129,7 +128,7 @@ impl Proxy {
                                 let id=last_id.fetch_add(1,Ordering::Relaxed) as u64;
                                 self.ids.lock().await.push(id);
                                 log::info!("{:?}连接代理端口, id->{}",addr,id);
-                                let mut boot=Bootstrap::build(stream, addr, ProxyEncoder::new(), ProxyDecoder::new(), ProxyHandler{ctx:ctx.clone(),id:id,conn_id:conn_id.clone(),port:bind_port});
+                                let mut boot=Bootstrap2::build(stream, addr, ProxyEncoder::new(), ProxyDecoder::new(), ProxyHandler{ctx:ctx.clone(),id:id,conn_id:conn_id.clone(),port:bind_port});
                                 if let Some(max_rate)=agent.max_rate{
                                   boot.capacity(1024);
                                   boot.set_rate_limit((max_rate*1024) as u64).await;
@@ -146,6 +145,7 @@ impl Proxy {
                                 let conn=Conns.get(conn_id.clone()).await;
                                 match conn{
                                       Some(conn)=>{
+                                        let mut conn=conn.clone();
                                         conn.ctx().write(open_msg).await;
                                       },
                                       None=>{
@@ -265,8 +265,9 @@ async fn open(id: String, bind_port: u16) {
         }
         log::info!("开启代理转发端口->{}", bind_port);
         conn.insert(bind_port, proxy.clone()).await;
+        let mut conn=conn.clone();
         tokio::spawn(async move {
-            if let Err(e) = proxy.accept(id, conn.ctx().clone()).await {
+            if let Err(e) = proxy.accept(id, conn.ctx()).await {
                 log::error!("{:?}", e);
             }
         });
@@ -276,6 +277,7 @@ async fn open(id: String, bind_port: u16) {
 async fn close(id: String, bind_port: u16) {
     if let Some(conn) = connection::Conns.get(id.clone()).await {
         log::info!("关闭代理转发端口->{}", bind_port);
+        let mut conn=conn.clone();
         conn.remove(bind_port).await;
     }
 }

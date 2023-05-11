@@ -16,6 +16,8 @@ pub mod decoder;
 pub mod decoder2;
 pub mod bootstrap;
 
+pub mod bootstrap2;
+
 pub mod message;
 
 pub mod token_bucket;

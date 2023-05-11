@@ -101,7 +101,7 @@ where
             tokio::select!{
                 msg = out.recv() => {
                     if let Some(msg)=msg{
-                        let h=handler.lock().await;
+                        let mut h=handler.lock().await;
                         let h=h.read(ctx.as_ref(), msg);
                         h.await;
                     }
@@ -151,7 +151,7 @@ where
     pub async fn run(&mut self) -> std::io::Result<()> {
         let ctx = Arc::clone(&self.ctx);
         let result=self.handle_run().await;
-        let h=self.handler.lock().await;
+        let mut h=self.handler.lock().await;
         h.close(ctx.as_ref()).await;
         result
     }

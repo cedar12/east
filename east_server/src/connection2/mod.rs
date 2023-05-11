@@ -1,11 +1,10 @@
 use std::collections::HashMap;
 use std::fs;
-use std::hash::Hash;
 use std::sync::Arc;
 use std::time::SystemTime;
 
 use east_core::byte_buf::ByteBuf;
-use east_core::context::Context;
+use east_core::context2::Context;
 use east_core::message::Msg;
 use east_core::types::TypesEnum;
 use tokio::fs::File;
@@ -13,7 +12,8 @@ use tokio::io::AsyncReadExt;
 use tokio::sync::mpsc::Sender;
 use tokio::sync::{Mutex, mpsc};
 
-use crate::proxy::{Proxy, self};
+use crate::proxy2 as proxy;
+use crate::proxy2::Proxy;
 use crate::handler::TIME_KEY;
 use std::time::UNIX_EPOCH;
 
@@ -35,8 +35,8 @@ impl Connection {
     pub fn new(ctx:Context<Msg>,id:String)->Self{
         Connection { ctx:ctx, id:id ,bind_proxy:Arc::new(Mutex::new(HashMap::new())),file_sender_map:HashMap::new()}
     }
-    pub fn ctx(self)->Context<Msg>{
-        self.ctx
+    pub fn ctx(&mut self)->&mut Context<Msg>{
+        &mut self.ctx
     }
     pub fn id(self)->String{
         self.id
@@ -52,8 +52,8 @@ impl Connection {
         }
         None
     }
-    pub async fn remove(&self,port:u16){
-        let ctx=self.clone().ctx();
+    pub async fn remove(&mut self,port:u16){
+        let ctx=self.ctx().clone();
         let mut binds=self.bind_proxy.lock().await;
         if let Some(proxy)=binds.get(&port){
             log::info!("关闭监听端口->{}",port);
@@ -72,8 +72,8 @@ impl Connection {
         }
         binds.remove(&port);
     }
-    pub async fn remove_all(&self){
-        let ctx=self.clone().ctx();
+    pub async fn remove_all(&mut self){
+        let ctx=self.ctx().clone();
         let mut binds=self.bind_proxy.lock().await;
         for (port,proxy) in binds.iter(){
             log::info!("关闭监听端口->{}",port);
@@ -95,7 +95,7 @@ impl Connection {
 
 #[derive(Debug)]
 pub struct Connections{
-    conns:Arc<Mutex<HashMap<String,Connection>>>
+    pub conns:Arc<Mutex<HashMap<String,Connection>>>
 }
 
 
@@ -134,9 +134,9 @@ impl Connections {
             loop{
                 tokio::time::sleep(tokio::time::Duration::from_millis(2000)).await;
                 let mut conns=self_conns.lock().await;
-                let r_conns=conns.clone();
-                for (id,conn) in r_conns.iter(){
-                    let conn_c=conn.clone();
+                let mut r_conns=conns.clone();
+                for (id,conn) in r_conns.iter_mut(){
+                    let mut conn_c=conn.clone();
                     let ctx=conn_c.ctx();
                     let t=ctx.get_attribute(TIME_KEY.into()).await;
                     let ht=t.lock().await;
@@ -176,7 +176,8 @@ pub async fn file_signal() {
         match rv.recv().await {
             Some((id,path,target)) => {
                 // 发送文件
-                match Conns.get(id.clone()).await{
+                let mut conns=Conns.conns.lock().await;
+                match conns.get_mut(&id){
                     Some(conn)=>{
                         if let Ok(metadata) = fs::metadata(path.clone()){
                             let size = metadata.len();
@@ -219,7 +220,7 @@ pub async fn file_signal() {
 
 pub async fn read_send_file(path:&str,ctx:Context<Msg>)->std::io::Result<()>{
     let mut file = File::open(path).await?;
-    let mut buffer = [0; 1024*32];
+    let mut buffer = [0; 1024];
     loop {
         let n = file.read(&mut buffer).await?;
         if n == 0 {

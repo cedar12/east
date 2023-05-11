@@ -6,10 +6,12 @@ extern crate libloading;
 extern crate cron_job;
 
 mod connection;
+mod connection2;
 mod server;
 mod handler;
 
 mod proxy;
+mod proxy2;
 
 mod config;
 
@@ -32,6 +34,10 @@ async fn main() -> Result<()> {
     init_plugin().await;
     tokio::spawn(async{
         proxy::proxy_signal().await;
+    });
+    tokio::spawn(async{
+        std::fs::create_dir_all("./tmp").unwrap();
+        connection::file_signal().await;
     });
     server::run().await
 }

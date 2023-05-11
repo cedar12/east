@@ -6,13 +6,15 @@ mod handler;
 mod proxy;
 mod config;
 mod log_conf;
+
+
 #[cfg(test)]
 mod tests;
 
 use std::sync::Arc;
 
-use east_core::{bootstrap::Bootstrap, message::{msg_encoder::MsgEncoder, msg_decoder::MsgDecoder}};
-use handler::AgentHandler;
+use east_core::{bootstrap2::Bootstrap, message::{msg_encoder::{MsgEncoder}, msg_decoder::{MsgDecoder}}};
+use handler::{AgentHandler};
 use tokio::{io, net::TcpStream, time};
 
 

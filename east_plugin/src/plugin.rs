@@ -85,5 +85,9 @@ pub enum Type {
 pub struct DBConfig{
   pub url:String,
   pub username:Option<String>,
-  pub password:Option<String,>
+  pub password:Option<String>
+}
+
+pub trait WebPlugin2:Plugin{
+  fn run(&self,bind:String,control:std::collections::HashMap<String,Box<dyn std::any::Any>>)->anyhow::Result<()>;
 }

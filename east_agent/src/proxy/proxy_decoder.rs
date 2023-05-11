@@ -6,7 +6,7 @@ pub struct ProxyDecoder{}
 
 #[async_trait::async_trait]
 impl Decoder<Vec<u8>> for ProxyDecoder{
-    async fn decode(&self,ctx: &east_core::context::Context<Vec<u8>> ,byte_buf: &mut ByteBuf) {
+    async fn decode(&mut self,ctx: &east_core::context::Context<Vec<u8>> ,byte_buf: &mut ByteBuf) {
       if byte_buf.readable_bytes()==0{
         return
       }

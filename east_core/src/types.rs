@@ -27,5 +27,9 @@ back_to_enum!{
         ProxyForward,
         ProxyClose,
         Heartbeat,
+        FileInfo,
+        FileInfoAsk,
+        File,
+        FileAsk,
     }
 }

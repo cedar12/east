@@ -1,6 +1,6 @@
-use std::{sync::Arc, time::{SystemTime, UNIX_EPOCH}};
+use std::{sync::Arc, time::{SystemTime, UNIX_EPOCH}, collections::HashMap};
 
-use east_core::{handler::Handler, message::Msg, context::Context, types::TypesEnum, byte_buf::ByteBuf, bootstrap::Bootstrap, token_bucket::TokenBucket};
+use east_core::{handler::Handler, message::Msg, context::Context, types::TypesEnum, byte_buf::ByteBuf, bootstrap2::Bootstrap, token_bucket::TokenBucket, handler2::HandlerMut};
 use async_trait::async_trait;
 use east_plugin::agent::Agent;
 use tokio::{net::TcpStream, spawn, sync::Mutex};
@@ -23,10 +23,10 @@ impl ServerHandler {
 
 #[async_trait]
 impl Handler<Msg> for ServerHandler{
-  async fn active(&self,ctx:&Context<Msg>){
+  async fn active(&mut self,ctx:&Context<Msg>){
     log::info!("{} 尝试连接",ctx.addr());
   }
-  async fn read(&self,ctx:&Context<Msg>,msg:Msg){
+  async fn read(&mut self,ctx:&Context<Msg>,msg:Msg){
 
     match msg.msg_type{
       TypesEnum::Auth=>{
@@ -154,10 +154,56 @@ impl Handler<Msg> for ServerHandler{
           Err(e) => log::error!("{:?}",e),
         }
       }
+      TypesEnum::FileInfoAsk=>{
+        if msg.data.len()>0{
+          let err_msg=String::from_utf8(msg.data).unwrap();
+          log::error!("发送文件信息错误：{}",err_msg);
+        }else{
+          log::debug!("FileInfoAsk1");
+          let id_attr=ctx.get_attribute("id".into()).await;
+          log::debug!("FileInfoAsk2");
+          let id=id_attr.lock().await;
+          log::debug!("FileInfoAsk3");
+          if let Some(id)=id.downcast_ref::<String>(){
+            match connection::Conns.get(id.clone()).await{
+              Some(c)=>{
+                log::info!("{}->准备发送文件",id);
+                let path_attr=ctx.get_attribute("send_file_path".into()).await;
+                let path=path_attr.lock().await;
+                if let Some(path)=path.downcast_ref::<String>(){
+                  let sender=c.file_sender_map.get(path);
+                  if let Some(s)=sender{
+                    s.send(()).await.unwrap();
+                    ctx.remove_attribute("send_file_path".into()).await;
+                  };
+                  
+                }else{
+                  log::warn!("未获取到发送文件路径")
+                }
+                
+              }
+              None=>{
+                log::warn!("{}连接未获取到代理绑定端口",id)
+              }
+            }
+          }
+          log::debug!("FileInfoAsk4");
+        }
+      },
+      TypesEnum::FileAsk=>{
+        if msg.data.len()>0{
+          // 终止传输
+          let err_msg=String::from_utf8(msg.data).unwrap();
+          log::error!("发送文件错误：{}",err_msg);
+        }
+      }
+      _=>{
+
+      }
     }
   }
 
-  async fn close(&self,ctx:&Context<Msg>){
+  async fn close(&mut self,ctx:&Context<Msg>){
     log::info!("{:?} 断开",ctx.addr());
     let id_attr=ctx.get_attribute("id".into()).await;
     let id=id_attr.lock().await;
@@ -224,3 +270,4 @@ async fn agent_adapter(id:String)->Option<Agent>{
   }
 
 }
+

@@ -1,6 +1,6 @@
-use east_core::{handler::Handler, context::Context, message::Msg, types::TypesEnum};
+use east_core::{handler2::Handler, context2::Context, message::Msg, types::TypesEnum};
 
-use crate::proxy;
+use crate::proxy2 as proxy;
 
 use super::ProxyMsg;
 
@@ -17,7 +17,10 @@ pub struct ProxyHandler{
 
 #[async_trait::async_trait]
 impl Handler<ProxyMsg> for ProxyHandler{
-  async fn read(&mut self, ctx: &Context<ProxyMsg>, msg: ProxyMsg) {
+  async fn read(&mut self, ctx: &mut Context<ProxyMsg>, msg: ProxyMsg) {
+    // println!("proxy read len {:?}", msg.buf.len());
+    // let m=Msg::new(TypesEnum::ProxyForward, msg);
+    // self.ctx.write(m).await;
     let mut bytes=msg.buf;
     let mut id_bytes=self.id.to_be_bytes().to_vec();
     id_bytes.append(&mut bytes);
@@ -25,7 +28,7 @@ impl Handler<ProxyMsg> for ProxyHandler{
     self.ctx.write(msg).await;
 
   }
-  async fn active(&mut self, ctx: &Context<ProxyMsg>) {
+  async fn active(&mut self, ctx: &mut Context<ProxyMsg>) {
     log::info!("[{}]proxy active {:?} id->{}",self.conn_id, ctx.addr(),self.id);
     ctx.set_attribute(PORT_KEY.into(),Box::new(self.port)).await;
     proxy::ProxyMap.lock().await.insert(self.id,ctx.clone());
@@ -39,7 +42,7 @@ impl Handler<ProxyMsg> for ProxyHandler{
       }
     }
   }
-  async fn close(&mut self,ctx:&Context<ProxyMsg>){
+  async fn close(&mut self,ctx:&mut Context<ProxyMsg>){
     let mut map=proxy::ProxyMap.lock().await;
     log::info!("proxy active close {:?}  id->{}", ctx.addr(),self.id);
     map.remove(&self.id);
