@@ -25,7 +25,7 @@ pub struct GlobalConfig{
 }
 
 fn default_server()->Server{
-    Server { bind: default_bind(),plugin:default_plugin()}
+    Server::new()
 }
 
 fn default_agent()->HashMap<String,Vec<Agent>>{

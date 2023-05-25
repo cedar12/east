@@ -7,3 +7,11 @@ pub trait HandlerMut<T>{
   async fn read(&mut self,ctx:&Context<T>,msg:T);
   async fn close(&mut self,ctx:&Context<T>);
 }
+
+
+#[async_trait]
+pub trait Handler<T>{
+  async fn active(&mut self,ctx:&mut crate::context2::Context<T>);
+  async fn read(&mut self,ctx:&mut crate::context2::Context<T>,msg:T);
+  async fn close(&mut self,ctx:&mut crate::context2::Context<T>);
+}

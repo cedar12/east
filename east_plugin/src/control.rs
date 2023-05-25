@@ -12,4 +12,6 @@ pub trait AgentControl: Send + Sync {
   fn close(&self,agent_id:String);
   /// 代理端是否在线
   fn is_online(&self,agent_id:String)->bool;
+  /// 发送文件至代理端
+  fn send_file(&self,agent_id:String,path:String,target:String);
 }

@@ -13,7 +13,10 @@ log/
 # sqlite
 *.db
 
+*.pem
+
 # 配置文件
+conf.yml
 /east_server/*.yml
 /east_agent/*.yml
 
@@ -29,3 +32,6 @@ output/
 *.ps1
 *.sh
 *.zip
+
+
+tmp/

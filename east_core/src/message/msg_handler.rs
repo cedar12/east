@@ -11,17 +11,17 @@ pub struct MsgHandler {}
 #[async_trait::async_trait]
 impl Handler<Msg> for MsgHandler {
     
-    async fn read(&self, ctx: &Context<Msg>, msg: Msg) {
+    async fn read(&mut self, ctx: &Context<Msg>, msg: Msg) {
         println!("handle read {:?}", msg);
         let m=Msg::new(TypesEnum::ProxyOpen, msg.data);
         ctx.write(m).await;
     }
-    async fn active(&self, ctx: &Context<Msg>) {
+    async fn active(&mut self, ctx: &Context<Msg>) {
         
         println!("active {:?}连接", ctx.addr());
         
     }
-    async fn close(&self,ctx:&Context<Msg>){
+    async fn close(&mut self,ctx:&Context<Msg>){
         println!("close {:?}断开 ", ctx.addr());
     }
 }

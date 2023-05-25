@@ -31,7 +31,6 @@ impl<T> PartialEq for Context<T>{
 
 impl<T> Clone for Context<T> {
     fn clone(&self) -> Self {
-        let is_run=self.is_run.load(Ordering::Relaxed);
         Context {
             in_tx:self.in_tx.clone(),
             out_tx:self.out_tx.clone(),
@@ -111,7 +110,3 @@ impl<T> Context<T> {
 
 }
 
-// unsafe impl<T> Send for Context<T>
-// where
-//     T: Send +Sync + 'static,
-// {}

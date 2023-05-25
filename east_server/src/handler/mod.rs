@@ -1,12 +1,13 @@
-use std::{sync::Arc, time::{SystemTime, UNIX_EPOCH}};
+use std::{sync::Arc, time::{SystemTime, UNIX_EPOCH}, collections::HashMap};
 
-use east_core::{handler::Handler, message::Msg, context::Context, types::TypesEnum, byte_buf::ByteBuf, bootstrap::Bootstrap, token_bucket::TokenBucket};
+use east_core::{handler::Handler, message::Msg, context::Context, types::TypesEnum, byte_buf::ByteBuf, bootstrap2::Bootstrap, token_bucket::TokenBucket, handler2::HandlerMut};
 use async_trait::async_trait;
 use east_plugin::agent::Agent;
 use tokio::{net::TcpStream, spawn, sync::Mutex};
 
-use crate::{connection, proxy::{Proxy, self, ProxyMsg, proxy_encoder::ProxyEncoder, proxy_decoder::ProxyDecoder, proxy_handler::ProxyHandler}, config, plugin};
+use crate::{connection, proxy::{Proxy, self, ProxyMsg, proxy_encoder::ProxyEncoder, proxy_decoder::ProxyDecoder, proxy_handler::ProxyHandler}, config, plugin, key};
 
+pub mod msg_decoder;
 
 pub const TIME_KEY:&str="heartbeat_time";
 
@@ -23,64 +24,81 @@ impl ServerHandler {
 
 #[async_trait]
 impl Handler<Msg> for ServerHandler{
-  async fn active(&self,ctx:&Context<Msg>){
+  async fn active(&mut self,ctx:&Context<Msg>){
     log::info!("{} 尝试连接",ctx.addr());
+    match SystemTime::now().duration_since(UNIX_EPOCH) {
+      Ok(n) => {
+        ctx.set_attribute(CONN_TIME_KEY.into(), Box::new(n.as_secs())).await;
+      },
+      Err(e) => log::error!("{:?}",e),
+    }
   }
-  async fn read(&self,ctx:&Context<Msg>,msg:Msg){
+  async fn read(&mut self,ctx:&Context<Msg>,msg:Msg){
 
     match msg.msg_type{
       TypesEnum::Auth=>{
-        let s=String::from_utf8(msg.data).unwrap();
-        log::info!("{}请求认证",s);
-        match agent_adapter(s.clone()).await{
-          Some(agent)=>{
-            let id=s.clone();
-            let id2=s.clone();
-            let id3=s.clone();
-            let opt=connection::Conns.get(s).await;
-            match opt{
-              Some(c)=>{
-                log::info!("{:?}已经连接了，不能重复连接",c);
-                ctx.close().await;
-                return
-              }
-              None=>{
-                ctx.set_attribute("id".into(), Box::new(id2)).await;
-                let conn=connection::Connection::new(ctx.clone(),id);
-                connection::Conns.insert(id3.clone(),conn).await;
-                let msg=Msg::new(TypesEnum::Auth,vec![]);
-                ctx.write(msg).await;
-                for a in agent.proxy.iter(){
-                  if !a.enable{
-                    continue;
+        // let s=String::from_utf8(msg.data).unwrap();
+        let s=key::decrypt(msg.data);
+        match s{
+          Ok(s)=>{
+              
+            log::info!("{}请求认证",s);
+            match agent_adapter(s.clone()).await{
+              Some(agent)=>{
+                let id=s.clone();
+                let id2=s.clone();
+                let id3=s.clone();
+                let opt=connection::Conns.get(s).await;
+                match opt{
+                  Some(c)=>{
+                    log::info!("{:?}已经连接了，不能重复连接",c);
+                    ctx.close().await;
+                    return
                   }
-                  let bind_port=a.bind_port.clone();
-                  let c=ctx.clone();
-                  let id=id3.clone();
-                  ctx.set_attribute("id".into(), Box::new(id)).await;
-                  let id=id3.clone();
-                  spawn(async move{
-                      if let Some(conn)=connection::Conns.get(id.clone()).await{
-                      let mut proxy=Proxy::new(bind_port);
-                      conn.insert(bind_port,proxy.clone()).await;
-                      if let Err(e)=proxy.listen().await{
-                        log::error!("{:?}",e);
-                        return
+                  None=>{
+                    ctx.set_attribute("id".into(), Box::new(id2)).await;
+                    let conn=connection::Connection::new(ctx.clone(),id);
+                    connection::Conns.insert(id3.clone(),conn).await;
+                    let msg=Msg::new(TypesEnum::Auth,vec![]);
+                    ctx.write(msg).await;
+                    for a in agent.proxy.iter(){
+                      if !a.enable{
+                        continue;
                       }
-                      if let Err(e)=proxy.accept(id,c.clone()).await{
-                        log::error!("{:?}",e);
-                      }
+                      let bind_port=a.bind_port.clone();
+                      let c=ctx.clone();
+                      let id=id3.clone();
+                      ctx.set_attribute("id".into(), Box::new(id)).await;
+                      let id=id3.clone();
+                      spawn(async move{
+                          if let Some(conn)=connection::Conns.get(id.clone()).await{
+                          let mut proxy=Proxy::new(bind_port);
+                          conn.insert(bind_port,proxy.clone()).await;
+                          if let Err(e)=proxy.listen().await{
+                            log::error!("{:?}",e);
+                            return
+                          }
+                          if let Err(e)=proxy.accept(id,c.clone()).await{
+                            log::error!("{:?}",e);
+                          }
+                        }
+                        
+                      });
                     }
                     
-                  });
+                  }
                 }
                 
+              },
+              None=>{
+                log::warn!("无{}配置，认证不通过",s);
+                ctx.close().await;
               }
             }
-            
+
           },
-          None=>{
-            log::warn!("无{}配置，认证不通过",s);
+          Err(e)=>{
+            log::error!("密钥解密错误{:?}",e);
             ctx.close().await;
           }
         }
@@ -154,10 +172,56 @@ impl Handler<Msg> for ServerHandler{
           Err(e) => log::error!("{:?}",e),
         }
       }
+      TypesEnum::FileInfoAsk=>{
+        if msg.data.len()>0{
+          let err_msg=String::from_utf8(msg.data).unwrap();
+          log::error!("发送文件信息错误：{}",err_msg);
+        }else{
+          log::debug!("FileInfoAsk1");
+          let id_attr=ctx.get_attribute("id".into()).await;
+          log::debug!("FileInfoAsk2");
+          let id=id_attr.lock().await;
+          log::debug!("FileInfoAsk3");
+          if let Some(id)=id.downcast_ref::<String>(){
+            match connection::Conns.get(id.clone()).await{
+              Some(c)=>{
+                log::info!("{}->准备发送文件",id);
+                let path_attr=ctx.get_attribute("send_file_path".into()).await;
+                let path=path_attr.lock().await;
+                if let Some(path)=path.downcast_ref::<String>(){
+                  let sender=c.file_sender_map.get(path);
+                  if let Some(s)=sender{
+                    s.send(()).await.unwrap();
+                    ctx.remove_attribute("send_file_path".into()).await;
+                  };
+                  
+                }else{
+                  log::warn!("未获取到发送文件路径")
+                }
+                
+              }
+              None=>{
+                log::warn!("{}连接未获取到代理绑定端口",id)
+              }
+            }
+          }
+          log::debug!("FileInfoAsk4");
+        }
+      },
+      TypesEnum::FileAsk=>{
+        if msg.data.len()>0{
+          // 终止传输
+          let err_msg=String::from_utf8(msg.data).unwrap();
+          log::error!("发送文件错误：{}",err_msg);
+        }
+      }
+      _=>{
+
+      }
     }
   }
 
-  async fn close(&self,ctx:&Context<Msg>){
+  async fn close(&mut self,ctx:&Context<Msg>){
     log::info!("{:?} 断开",ctx.addr());
     let id_attr=ctx.get_attribute("id".into()).await;
     let id=id_attr.lock().await;
@@ -224,3 +288,4 @@ async fn agent_adapter(id:String)->Option<Agent>{
   }
 
 }
+

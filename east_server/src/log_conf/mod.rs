@@ -40,7 +40,7 @@ fn get_log_config() -> Config {
             Root::builder()
                 .appender("stdout")
                 .appender("file")
-                .build(LevelFilter::Info),
+                .build(LevelFilter::Debug),
         )
         .unwrap();
     config
@@ -72,5 +72,6 @@ struct LogJob {
 impl Job for LogJob {
     fn run(&mut self) {
         self.handle.set_config(get_log_config());
+        
     }
 }

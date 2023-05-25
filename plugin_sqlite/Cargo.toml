@@ -1,19 +1,16 @@
 [package]
 name = "east_sqlite"
-version = "0.1.0"
+version = "0.0.3"
 edition = "2021"
 license ="Apache 2.0"
 authors = ["cedar12.zxd@qq.com"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+
 [lib]
 name = "east_sqlite"
 crate-type = ["dylib"]
-
-[target.x86_64-unknown-linux-musl]
-image = "ghcr.io/cross-rs/x86_64-unknown-linux-musl:main"
-pre-build = ["apt-get update && apt-get install --assume-yes --no-install-recommends libsqlite3-sys"]
-
 
 [dependencies]
 east_plugin={path="../east_plugin"}

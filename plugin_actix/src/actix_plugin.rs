@@ -54,6 +54,7 @@ impl WebPlugin for ActixPlugin {
                 .service(route::modify_proxy)
                 .service(route::login)
                 .service(route::login_user_info)
+                .service(route::send_file)
             )
             .service(route::dist)
             .service(route::index)

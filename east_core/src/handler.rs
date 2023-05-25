@@ -32,7 +32,7 @@ use crate::context::Context;
 /// 
 #[async_trait::async_trait]
 pub trait Handler<T>{
-  async fn active(&self,ctx:&Context<T>);
-  async fn read(&self,ctx:&Context<T>,msg:T);
-  async fn close(&self,ctx:&Context<T>);
+  async fn active(&mut self,ctx:&Context<T>);
+  async fn read(&mut self,ctx:&Context<T>,msg:T);
+  async fn close(&mut self,ctx:&Context<T>);
 }

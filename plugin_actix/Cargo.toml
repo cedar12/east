@@ -1,9 +1,10 @@
 [package]
 name = "east_actix"
-version = "0.1.0"
+version = "0.0.3"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
 
 [lib]
 name = "east_actix"
@@ -12,7 +13,9 @@ crate-type = ["dylib"]
 
 [dependencies]
 actix-web = "4.3.1"
-actix-files = "0.6.0"
+actix-multipart = "0.6.0"
+actix-files = "0.6.2"
+futures-util = "0.3.28"
 east_plugin={path="../east_plugin"}
 anyhow="1.0"
 serde = { version = "1.0.132", features = ["derive"] }
@@ -21,4 +24,6 @@ chrono = "0.4.24"
 jsonwebtoken = "8.1.1"
 rust-embed="6.6.1"
 mime_guess = "2.0.4"
+sanitize-filename = "0.4"
+uuid = { version = "1", features = ["v4"] }
 # east_sqlite={path="../plugin_sqlite"}

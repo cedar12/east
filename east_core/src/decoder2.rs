@@ -7,3 +7,10 @@ pub trait DecoderMut<T>{
 
   async fn decode(&mut self,ctx:&Context<T>,byte_buf:&mut ByteBuf);
 }
+
+
+#[async_trait]
+pub trait Decoder<T>{
+
+  async fn decode(&mut self,ctx:&mut crate::context2::Context<T>,byte_buf:&mut ByteBuf);
+}

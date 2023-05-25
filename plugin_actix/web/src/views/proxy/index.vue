@@ -1,6 +1,6 @@
 <template>
   <div class="proxy-container">
-    <t-space direction="vertical">
+    <t-space direction="vertical" style="width:100%">
     <t-button @click="state.visible=true">新增</t-button>
   <t-base-table
   bordered
@@ -41,6 +41,7 @@ const columns=[
       </t-popconfirm>
     ),
 },
+
 {
     title: '连接白名单',
     colKey: 'whitelist',

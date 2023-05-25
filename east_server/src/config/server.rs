@@ -7,6 +7,18 @@ pub struct Server {
     pub bind: String,
     #[serde(default = "default_plugin")]
     pub plugin:Plugin,
+    #[serde(default = "default_key")]
+    pub key:String,
+}
+
+impl Server{
+    pub fn new()->Self{
+        Self{
+            bind:default_bind(),
+            plugin:default_plugin(),
+            key:default_key()
+        }
+    }
 }
 
 pub fn default_plugin()->Plugin{
@@ -15,6 +27,9 @@ pub fn default_plugin()->Plugin{
 
 pub fn default_bind()->String{
     String::from("127.0.0.1:3555")
+}
+pub fn default_key()->String{
+    String::from("key.pem")
 }
 
 pub fn default_plugin_dir()->String{

@@ -1,7 +1,7 @@
 use std::net::{SocketAddr};
 use std::sync::Arc;
 
-use east_core::bootstrap::Bootstrap;
+use east_core::bootstrap2::Bootstrap;
 use east_core::message::msg_decoder::MsgDecoder;
 use east_core::message::msg_encoder::MsgEncoder;
 use tokio::net::{TcpListener, TcpStream};
