@@ -5,8 +5,9 @@ use async_trait::async_trait;
 use east_plugin::agent::Agent;
 use tokio::{net::TcpStream, spawn, sync::Mutex};
 
-use crate::{connection, proxy::{Proxy, self, ProxyMsg, proxy_encoder::ProxyEncoder, proxy_decoder::ProxyDecoder, proxy_handler::ProxyHandler}, config, plugin};
+use crate::{connection, proxy::{Proxy, self, ProxyMsg, proxy_encoder::ProxyEncoder, proxy_decoder::ProxyDecoder, proxy_handler::ProxyHandler}, config, plugin, key};
 
+pub mod msg_decoder;
 
 pub const TIME_KEY:&str="heartbeat_time";
 
@@ -25,62 +26,79 @@ impl ServerHandler {
 impl Handler<Msg> for ServerHandler{
   async fn active(&mut self,ctx:&Context<Msg>){
     log::info!("{} 尝试连接",ctx.addr());
+    match SystemTime::now().duration_since(UNIX_EPOCH) {
+      Ok(n) => {
+        ctx.set_attribute(CONN_TIME_KEY.into(), Box::new(n.as_secs())).await;
+      },
+      Err(e) => log::error!("{:?}",e),
+    }
   }
   async fn read(&mut self,ctx:&Context<Msg>,msg:Msg){
 
     match msg.msg_type{
       TypesEnum::Auth=>{
-        let s=String::from_utf8(msg.data).unwrap();
-        log::info!("{}请求认证",s);
-        match agent_adapter(s.clone()).await{
-          Some(agent)=>{
-            let id=s.clone();
-            let id2=s.clone();
-            let id3=s.clone();
-            let opt=connection::Conns.get(s).await;
-            match opt{
-              Some(c)=>{
-                log::info!("{:?}已经连接了，不能重复连接",c);
-                ctx.close().await;
-                return
-              }
-              None=>{
-                ctx.set_attribute("id".into(), Box::new(id2)).await;
-                let conn=connection::Connection::new(ctx.clone(),id);
-                connection::Conns.insert(id3.clone(),conn).await;
-                let msg=Msg::new(TypesEnum::Auth,vec![]);
-                ctx.write(msg).await;
-                for a in agent.proxy.iter(){
-                  if !a.enable{
-                    continue;
+        // let s=String::from_utf8(msg.data).unwrap();
+        let s=key::decrypt(msg.data);
+        match s{
+          Ok(s)=>{
+              
+            log::info!("{}请求认证",s);
+            match agent_adapter(s.clone()).await{
+              Some(agent)=>{
+                let id=s.clone();
+                let id2=s.clone();
+                let id3=s.clone();
+                let opt=connection::Conns.get(s).await;
+                match opt{
+                  Some(c)=>{
+                    log::info!("{:?}已经连接了，不能重复连接",c);
+                    ctx.close().await;
+                    return
                   }
-                  let bind_port=a.bind_port.clone();
-                  let c=ctx.clone();
-                  let id=id3.clone();
-                  ctx.set_attribute("id".into(), Box::new(id)).await;
-                  let id=id3.clone();
-                  spawn(async move{
-                      if let Some(conn)=connection::Conns.get(id.clone()).await{
-                      let mut proxy=Proxy::new(bind_port);
-                      conn.insert(bind_port,proxy.clone()).await;
-                      if let Err(e)=proxy.listen().await{
-                        log::error!("{:?}",e);
-                        return
+                  None=>{
+                    ctx.set_attribute("id".into(), Box::new(id2)).await;
+                    let conn=connection::Connection::new(ctx.clone(),id);
+                    connection::Conns.insert(id3.clone(),conn).await;
+                    let msg=Msg::new(TypesEnum::Auth,vec![]);
+                    ctx.write(msg).await;
+                    for a in agent.proxy.iter(){
+                      if !a.enable{
+                        continue;
                       }
-                      if let Err(e)=proxy.accept(id,c.clone()).await{
-                        log::error!("{:?}",e);
-                      }
+                      let bind_port=a.bind_port.clone();
+                      let c=ctx.clone();
+                      let id=id3.clone();
+                      ctx.set_attribute("id".into(), Box::new(id)).await;
+                      let id=id3.clone();
+                      spawn(async move{
+                          if let Some(conn)=connection::Conns.get(id.clone()).await{
+                          let mut proxy=Proxy::new(bind_port);
+                          conn.insert(bind_port,proxy.clone()).await;
+                          if let Err(e)=proxy.listen().await{
+                            log::error!("{:?}",e);
+                            return
+                          }
+                          if let Err(e)=proxy.accept(id,c.clone()).await{
+                            log::error!("{:?}",e);
+                          }
+                        }
+                        
+                      });
                     }
                     
-                  });
+                  }
                 }
                 
+              },
+              None=>{
+                log::warn!("无{}配置，认证不通过",s);
+                ctx.close().await;
               }
             }
-            
+
           },
-          None=>{
-            log::warn!("无{}配置，认证不通过",s);
+          Err(e)=>{
+            log::error!("密钥解密错误{:?}",e);
             ctx.close().await;
           }
         }

@@ -6,7 +6,7 @@ mod handler;
 mod proxy;
 mod config;
 mod log_conf;
-
+mod key;
 
 #[cfg(test)]
 mod tests;

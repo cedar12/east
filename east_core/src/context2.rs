@@ -1,7 +1,9 @@
 use std::any::Any;
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::net::SocketAddr;
+use std::rc::Rc;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use chashmap::CHashMap;
@@ -9,12 +11,12 @@ use tokio::sync::{Mutex};
 use tokio::sync::mpsc::{Sender};
 
 pub struct Context<T> {
-    in_tx: Arc<Mutex<Sender<T>>>,
-    out_tx: Arc<Mutex<Sender<T>>>,
-    close_tx:Arc<Mutex<Sender<()>>>,
+    in_tx: Rc<RefCell<Sender<T>>>,
+    out_tx: Rc<RefCell<Sender<T>>>,
+    close_tx:Rc<RefCell<Sender<()>>>,
     attributes:CHashMap<String, Arc<Mutex<Box<dyn Any + Send + Sync>>>>,
     addr:SocketAddr,
-    is_run:Arc<AtomicBool>,
+    is_run:Rc<AtomicBool>,
 }
 
 impl<T> Debug for Context<T>{
@@ -51,12 +53,12 @@ impl<T> Clone for Context<T> {
 impl<T> Context<T> {
     pub fn new(in_tx: Sender<T>, out_tx: Sender<T>,addr:SocketAddr,close_tx:Sender<()>) -> Self {
         Context {
-            in_tx: Arc::new(Mutex::new(in_tx)),
-            out_tx: Arc::new(Mutex::new(out_tx)),
-            close_tx:Arc::new(Mutex::new(close_tx)),
+            in_tx: Rc::new(RefCell::new(in_tx)),
+            out_tx: Rc::new(RefCell::new(out_tx)),
+            close_tx:Rc::new(RefCell::new(close_tx)),
             attributes:CHashMap::new(),
             addr,
-            is_run:Arc::new(AtomicBool::new(true))
+            is_run:Rc::new(AtomicBool::new(true))
         }
     }
 
@@ -71,20 +73,24 @@ impl<T> Context<T> {
     where
         T: Send + 'static,
     {
-        let s=self.out_tx.lock().await;
-        s.send(msg).await;
+        self.out_tx.borrow_mut().send(msg).await;
+        // let s=self.out_tx.lock().await;
+        // s.send(msg).await;
     }
     pub async fn write(&self, msg:T) {
-        self.in_tx.lock().await.send(msg).await;
+        // self.in_tx.lock().await.send(msg).await;
+        self.in_tx.borrow_mut().send(msg).await;
     }
 
     pub async fn close(&self) {
         self.is_run.store(false, Ordering::Relaxed);
-        self.close_tx.lock().await.send(()).await.unwrap();
+        // self.close_tx.lock().await.send(()).await.unwrap();
+        self.close_tx.borrow_mut().send(()).await;
     }
     pub async fn close_run(&self) {
         self.is_run.store(false, Ordering::Relaxed);
-        self.close_tx.lock().await.send(()).await.unwrap();
+        // self.close_tx.lock().await.send(()).await.unwrap();
+        self.close_tx.borrow_mut().send(()).await;
     }
 
     pub fn is_run(&self)->bool{

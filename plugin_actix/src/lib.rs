@@ -3,6 +3,8 @@
 use actix_plugin::ActixPlugin;
 use east_plugin::plugin::{Plugin, WebPlugin};
 
+#[cfg(test)]
+mod tests;
 
 mod actix_plugin;
 mod route;

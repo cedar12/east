@@ -1,6 +1,6 @@
 [package]
 name = "east_agent"
-version = "0.1.0"
+version = "0.0.3"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -20,3 +20,6 @@ log4rs="1.0.0"
 chrono = "0.4.24"
 cron-job = "0.1.0"
 systemstat="0.2.3"
+rsa = "0.9.2"
+rand = "0.8.5"
+anyhow="1.0"

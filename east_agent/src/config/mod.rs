@@ -14,11 +14,16 @@ lazy_static!{
 pub struct GlobalConfig{
     #[serde(default = "default_server")]
     pub server:String,
-    pub id:String
+    pub id:String,
+    #[serde(default = "default_key")]
+    pub key:String
 }
 
 fn default_server()->String{
     String::from("127.0.0.1:3555")
+}
+fn default_key()->String{
+    String::from("pub_key.pem")
 }
 
 fn load_config<T>(path: &str) -> T where T: DeserializeOwned {

@@ -3,7 +3,7 @@ use std::{sync::Arc, path::Path, fs};
 use east_core::{handler::Handler, message::Msg, context::Context, types::TypesEnum, byte_buf::ByteBuf, bootstrap2::Bootstrap, handler2::HandlerMut};
 use tokio::{net::TcpStream, spawn, time, task::JoinHandle, sync::{broadcast::{Sender,Receiver}, self}, fs::{File, OpenOptions}, io::{BufWriter, AsyncWriteExt}};
 
-use crate::{proxy::{proxy_encoder::ProxyEncoder, proxy_decoder::ProxyDecoder, proxy_handler::ProxyHandler, self}, config};
+use crate::{proxy::{proxy_encoder::ProxyEncoder, proxy_decoder::ProxyDecoder, proxy_handler::ProxyHandler, self}, config, key};
 
 
 pub struct AgentHandler {
@@ -120,8 +120,17 @@ impl Handler<Msg> for AgentHandler {
         log::info!("已连接 {:?}", ctx.addr());
         let conf=Arc::clone(&config::CONF);
         let id=conf.id.clone();
-        let msg=Msg::new(TypesEnum::Auth,id.as_bytes().to_vec());
-        ctx.write(msg).await;
+        match key::encrypt(id){
+          Ok(data)=>{
+            let msg=Msg::new(TypesEnum::Auth,data);
+            ctx.write(msg).await;
+          },
+          Err(e)=>{
+            log::error!("公钥加载失败{:?}",e);
+            ctx.close().await;
+          }
+        }
+        
     }
     async fn close(&mut self, ctx: &Context<Msg>) {
         log::info!("关闭 {:?} ", ctx.addr());

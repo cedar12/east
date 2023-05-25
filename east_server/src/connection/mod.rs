@@ -11,7 +11,7 @@ use east_core::types::TypesEnum;
 use tokio::fs::File;
 use tokio::io::AsyncReadExt;
 use tokio::sync::mpsc::Sender;
-use tokio::sync::{Mutex, mpsc};
+use tokio::sync::{Mutex, mpsc, RwLock};
 
 use crate::proxy::{Proxy, self};
 use crate::handler::TIME_KEY;
@@ -95,24 +95,29 @@ impl Connection {
 
 #[derive(Debug)]
 pub struct Connections{
-    conns:Arc<Mutex<HashMap<String,Connection>>>
+    // conns:Arc<Mutex<HashMap<String,Connection>>>
+    conns:Arc<RwLock<HashMap<String,Connection>>>
 }
 
 
 impl Connections {
     pub fn new()->Self{
-        Connections { conns: Arc::new(Mutex::new(HashMap::new())) }
+        // Connections { conns: Arc::new(Mutex::new(HashMap::new())) }
+        Connections { conns: Arc::new(RwLock::new(HashMap::new())) }
     }
     pub async fn insert(&self,id:String,client:Connection){
-        let mut conns=self.conns.lock().await;
+        // let mut conns=self.conns.lock().await;
+        let mut conns=self.conns.write().await;
         conns.insert(id,client);
     }
     pub async fn remove(&self,id:String)->bool{
-        let mut conns=self.conns.lock().await;
+        // let mut conns=self.conns.lock().await;
+        let mut conns=self.conns.write().await;
        conns.remove(&id).is_some()
     }
     pub async fn get(&self,id:String)->Option<Connection>{
-        let conns=self.conns.lock().await;
+        // let conns=self.conns.lock().await;
+        let conns=self.conns.read().await;
         match conns.get(&id){
             Some(c)=>Some(c.clone()),
             None=>None
@@ -120,7 +125,7 @@ impl Connections {
     }
 
     pub async fn insert_file_sender(&self,id:String,path:String,sender:Sender<()>)->anyhow::Result<()>{
-        let mut conns=self.conns.lock().await;
+        let mut conns=self.conns.write().await;
         if let Some(c) =conns.get_mut(&id){
             c.file_sender_map.insert(path, sender);
             return Ok(())
@@ -133,7 +138,7 @@ impl Connections {
         tokio::spawn(async move{
             loop{
                 tokio::time::sleep(tokio::time::Duration::from_millis(2000)).await;
-                let mut conns=self_conns.lock().await;
+                let mut conns=self_conns.write().await;
                 let r_conns=conns.clone();
                 for (id,conn) in r_conns.iter(){
                     let conn_c=conn.clone();
@@ -153,14 +158,16 @@ impl Connections {
                             Err(e) => log::error!("{:?}",e),
                         }
                     }
+                    drop(ht)
                 }
+                drop(conns)
             }
         });
         
     }
  
     pub async fn println(&self){
-        let conns=self.conns.lock().await;
+        let conns=self.conns.read().await;
         println!("{:?}",conns);
     }
 }

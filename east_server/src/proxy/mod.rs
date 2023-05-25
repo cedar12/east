@@ -124,7 +124,7 @@ impl Proxy {
                             if !agent.match_addr(addr.to_string()){
                                 log::warn!("IP->{:?},不在白名单列表内,阻止连接",addr);
                                 let _=stream.shutdown().await;
-                              }else{
+                            }else{
                                 let id=last_id.fetch_add(1,Ordering::Relaxed) as u64;
                                 self.ids.lock().await.push(id);
                                 log::info!("{:?}连接代理端口, id->{}",addr,id);
@@ -153,7 +153,7 @@ impl Proxy {
                                         return Ok(())
                                       }
                                 }
-                              }
+                            }
                         },
                         None=>{
                             log::warn!("无{}配置",conn_id);
@@ -183,7 +183,7 @@ async fn proxy_conf_adapter(conn_id:String,bind_port: u16)->Option<Agent>{
     let conf=Arc::clone(&config::CONF);
     let plugin_result=plugin::database_plugin().await;
     match plugin_result{
-        core::result::Result::Ok((plugin,pi))=>{
+        core::result::Result::Ok((plugin,_pi))=>{
             let proxy=plugin.get_proxy(bind_port);
             match proxy{
                 core::result::Result::Ok((_,proxy))=>{
@@ -206,6 +206,8 @@ async fn proxy_conf_adapter(conn_id:String,bind_port: u16)->Option<Agent>{
                     let a=agents.iter().find(|&x| x.bind_port==bind_port);
                     if let Some(agent)=a{
                         return Some(agent.clone())
+                    }else{
+                        log::warn!("无{}配置{}",conn_id,bind_port);
                     }
 
                 },

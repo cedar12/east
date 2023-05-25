@@ -1,4 +1,4 @@
-use std::{sync::Arc, any::{Any, TypeId}, path::{PathBuf, Path}};
+use std::{sync::Arc, any::{Any, TypeId}, path::{PathBuf, Path}, time::Duration, thread, str::FromStr};
 
 use east_plugin::plugin::{Plugin, DatabasePlugin, Type, DBConfig};
 use tokio::{fs::File, io::{self, AsyncReadExt}};
@@ -127,3 +127,44 @@ async fn test_rate_limiter(){
 
 }
 
+use rsa::{Pkcs1v15Encrypt, RsaPrivateKey, RsaPublicKey, pkcs8::{EncodePrivateKey, LineEnding, EncodePublicKey, DecodePublicKey, DecodePrivateKey}};
+#[test]
+fn test_rsa(){
+    let mut rng = rand::thread_rng();
+    let bits = 2048;
+    let priv_key = RsaPrivateKey::new(&mut rng, bits).expect("failed to generate a key");
+    let pub_key = RsaPublicKey::from(&priv_key);
+
+    let private_key_pem=priv_key.to_pkcs8_pem(LineEnding::CRLF).unwrap();
+    let mut file = std::fs::File::create("private_key1.pem").expect("Failed to create private key file");
+    std::io::Write::write_all(&mut file, private_key_pem.as_bytes()).expect("Failed to write private key to file");
+    let public_key_pem=pub_key.to_public_key_pem(LineEnding::CRLF).unwrap();
+    let mut file = std::fs::File::create("public_key1.pem").expect("Failed to create public key file");
+    std::io::Write::write_all(&mut file, public_key_pem.as_bytes()).expect("Failed to write public key to file");
+
+    // Encrypt
+    let data = b"hello world";
+    let enc_data = pub_key.encrypt(&mut rng, Pkcs1v15Encrypt, &data[..]).expect("failed to encrypt");
+    assert_ne!(&data[..], &enc_data[..]);
+
+    // Decrypt
+    let dec_data = priv_key.decrypt(Pkcs1v15Encrypt, &enc_data).expect("failed to decrypt");
+    assert_eq!(&data[..], &dec_data[..]);
+}
+
+#[test]
+fn test_read_pem(){
+    let mut rng = rand::thread_rng();
+    let data = b"hello world";
+    let pub_key=RsaPublicKey::read_public_key_pem_file("public_key1.pem").unwrap();
+    let priv_key=RsaPrivateKey::read_pkcs8_pem_file("private_key.pem").unwrap();
+
+    let enc_data = pub_key.encrypt(&mut rng, Pkcs1v15Encrypt, &data[..]).expect("failed to encrypt");
+
+    // Decrypt
+    let dec_data = priv_key.decrypt(Pkcs1v15Encrypt, &enc_data).expect("failed to decrypt");
+    let d=String::from_utf8(dec_data.clone()).unwrap();
+    println!("{}",d);
+    assert_eq!(&data[..], &dec_data[..]);
+
+}
