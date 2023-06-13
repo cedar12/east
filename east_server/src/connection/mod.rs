@@ -27,13 +27,13 @@ lazy_static! {
 pub struct Connection{
     ctx:Context<Msg>,
     id:String,
-    bind_proxy:Arc<Mutex<HashMap<u16,Proxy>>>,
+    bind_proxy:Arc<RwLock<HashMap<u16,Proxy>>>,
     pub file_sender_map:HashMap<String,Sender<()>>
 }
 
 impl Connection {
     pub fn new(ctx:Context<Msg>,id:String)->Self{
-        Connection { ctx:ctx, id:id ,bind_proxy:Arc::new(Mutex::new(HashMap::new())),file_sender_map:HashMap::new()}
+        Connection { ctx:ctx, id:id ,bind_proxy:Arc::new(RwLock::new(HashMap::new())),file_sender_map:HashMap::new()}
     }
     pub fn ctx(self)->Context<Msg>{
         self.ctx
@@ -42,11 +42,13 @@ impl Connection {
         self.id
     }
     pub async fn insert(&self,port:u16,p:Proxy){
-        self.bind_proxy.lock().await.insert(port, p);
+        // self.bind_proxy.lock().await.insert(port, p);
+        self.bind_proxy.write().await.insert(port, p);
     }
     pub async fn get_proxy(&self,port:u16)->Option<Proxy>{
         let ctx=self.clone().ctx();
-        let binds=self.bind_proxy.lock().await;
+        // let binds=self.bind_proxy.lock().await;
+        let binds=self.bind_proxy.read().await;
         if let Some(proxy)=binds.get(&port){
             return Some(proxy.clone())
         }
@@ -54,13 +56,14 @@ impl Connection {
     }
     pub async fn remove(&self,port:u16){
         let ctx=self.clone().ctx();
-        let mut binds=self.bind_proxy.lock().await;
+        // let mut binds=self.bind_proxy.lock().await;
+        let binds=self.bind_proxy.read().await;
         if let Some(proxy)=binds.get(&port){
             log::info!("关闭监听端口->{}",port);
             
             let mut p_map=proxy::ProxyMap.lock().await;
-            let ids=proxy.ids.lock().await;
-            for (_,id) in ids.iter().enumerate(){
+            // let ids=proxy.ids.read().await;
+            for (_,id) in proxy.ids.read().await.iter().enumerate(){
                 let mut bf=ByteBuf::new_with_capacity(0);
                 bf.write_u64_be(*id);
                 let msg=Msg::new(TypesEnum::ProxyClose, bf.available_bytes().to_vec());
@@ -70,16 +73,17 @@ impl Connection {
             }
             proxy.close().await;
         }
-        binds.remove(&port);
+        self.bind_proxy.write().await.remove(&port);
     }
     pub async fn remove_all(&self){
         let ctx=self.clone().ctx();
-        let mut binds=self.bind_proxy.lock().await;
+        let binds=self.bind_proxy.read().await;
+        // let mut binds=self.bind_proxy.lock().await;
         for (port,proxy) in binds.iter(){
             log::info!("关闭监听端口->{}",port);
             let mut p_map=proxy::ProxyMap.lock().await;
-            let ids=proxy.ids.lock().await;
-            for (_,id) in ids.iter().enumerate(){
+            // let ids=proxy.ids.lock().await;
+            for (_,id) in proxy.ids.read().await.iter().enumerate(){
                 let mut bf=ByteBuf::new_with_capacity(0);
                 bf.write_u64_be(*id);
                 let msg=Msg::new(TypesEnum::ProxyClose, bf.available_bytes().to_vec());
@@ -89,7 +93,7 @@ impl Connection {
             }
             proxy.close().await;
         }
-        binds.clear();
+        self.bind_proxy.write().await.clear();
     }
 }
 
@@ -116,7 +120,6 @@ impl Connections {
        conns.remove(&id).is_some()
     }
     pub async fn get(&self,id:String)->Option<Connection>{
-        // let conns=self.conns.lock().await;
         let conns=self.conns.read().await;
         match conns.get(&id){
             Some(c)=>Some(c.clone()),

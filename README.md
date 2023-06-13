@@ -83,7 +83,7 @@ cargo build --release --package east_actix
 server:
   # 服务器绑定端口
   bind: 0.0.0.0:3555
-  # 私钥文件路径 默认key.pem 运行时如果不存在则会生成私钥公钥文件 公钥以pub_开头文件
+  # 可选配置 私钥文件路径 运行时如果不存在则会生成私钥公钥文件 公钥以pub_开头文件
   key: ./key.pem
   # 插件配置
   plugin: 
@@ -129,7 +129,7 @@ agent:
 server: 127.0.0.1:3555
 # 对应服务端配置的agent.test。如服务端未配置的id，服务端会拒绝连接
 id: test
-# 公钥文件路径 默认pub_key.pem
+# 可选配置 公钥文件路径
 key: ./pub_key.pem
 ```
 

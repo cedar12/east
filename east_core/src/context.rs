@@ -4,14 +4,14 @@ use std::fmt::Debug;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
-use tokio::sync::{Mutex};
+use tokio::sync::{Mutex, RwLock};
 use tokio::sync::mpsc::{Sender};
 
 pub struct Context<T> {
     in_tx: Arc<Mutex<Sender<T>>>,
     out_tx: Arc<Mutex<Sender<T>>>,
     close_tx:Arc<Mutex<Sender<()>>>,
-    attributes:Arc<Mutex<HashMap<String, Arc<Mutex<Box<dyn Any + Send + Sync>>>>>>,
+    attributes:Arc<RwLock<HashMap<String, Arc<Mutex<Box<dyn Any + Send + Sync>>>>>>,
     addr:SocketAddr,
     is_run:Arc<AtomicBool>,
 }
@@ -52,7 +52,7 @@ impl<T> Context<T> {
             in_tx: Arc::new(Mutex::new(in_tx)),
             out_tx: Arc::new(Mutex::new(out_tx)),
             close_tx:Arc::new(Mutex::new(close_tx)),
-            attributes:Arc::new(Mutex::new(HashMap::new())),
+            attributes:Arc::new(RwLock::new(HashMap::new())),
             addr,
             is_run:Arc::new(AtomicBool::new(true))
         }
@@ -90,19 +90,21 @@ impl<T> Context<T> {
     }
 
     pub async fn set_attribute(&self, key: String, value: Box<dyn Any + Send + Sync>) {
-        let mut attributes = self.attributes.lock().await;
-        attributes.insert(key, Arc::new(Mutex::new(value)));
+        // let mut attributes = self.attributes.lock().await;
+        self.attributes.write().await.insert(key, Arc::new(Mutex::new(value)));
+        // attributes.insert(key, Arc::new(Mutex::new(value)));
     }
 
     pub async fn remove_attribute(&self, key: String) {
-        let mut attributes = self.attributes.lock().await;
-        attributes.remove(&key);
+        // let mut attributes = self.attributes.lock().await;
+        // attributes.remove(&key);
+        self.attributes.write().await.remove(&key);
     }
 
     pub async fn get_attribute(&self, key: String) -> Arc<Mutex<Box<dyn Any + Send + Sync>>> {
-        let attributes = self.attributes.lock().await;
-        let v = attributes.get(key.as_str());
-        match v{
+        // let attributes = self.attributes.lock().await;
+        // let v = attributes.get(key.as_str());
+        match self.attributes.read().await.get(key.as_str()){
             Some(v)=>v.clone(),
             None=>Arc::new(Mutex::new(Box::new(())))
         }

@@ -15,8 +15,8 @@ pub struct GlobalConfig{
     #[serde(default = "default_server")]
     pub server:String,
     pub id:String,
-    #[serde(default = "default_key")]
-    pub key:String
+    // #[serde(default = "default_key")]
+    pub key:Option<String>
 }
 
 fn default_server()->String{

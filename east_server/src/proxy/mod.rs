@@ -26,6 +26,7 @@ use tokio::{
     sync::{
         broadcast::{self, Receiver, Sender},
         Mutex,
+        RwLock
     },
 };
 
@@ -56,7 +57,7 @@ pub struct Proxy {
     listen: Arc<Option<TcpListener>>,
     c_rv: Arc<Mutex<Receiver<()>>>,
     c_tx: Arc<Mutex<Sender<()>>>,
-    pub ids: Arc<Mutex<Vec<u64>>>,
+    pub ids: Arc<RwLock<Vec<u64>>>,
 }
 
 impl Clone for Proxy {
@@ -87,7 +88,7 @@ impl Proxy {
             listen: Arc::new(None),
             c_rv: Arc::new(Mutex::new(rv)),
             c_tx: Arc::new(Mutex::new(tx)),
-            ids: Arc::new(Mutex::new(vec![])),
+            ids: Arc::new(RwLock::new(vec![])),
         }
     }
     pub fn bind_port(self) -> u16 {
@@ -102,6 +103,7 @@ impl Proxy {
     }
 
     pub async fn close(&self) {
+        self.ids.write().await.clear();
         self.c_tx.lock().await.send(()).unwrap();
     }
 
@@ -126,7 +128,8 @@ impl Proxy {
                                 let _=stream.shutdown().await;
                             }else{
                                 let id=last_id.fetch_add(1,Ordering::Relaxed) as u64;
-                                self.ids.lock().await.push(id);
+                                // self.ids.lock().await.push(id);
+                                self.ids.write().await.push(id);
                                 log::info!("{:?}连接代理端口, id->{}",addr,id);
                                 let mut boot=Bootstrap::build(stream, addr, ProxyEncoder::new(), ProxyDecoder::new(), ProxyHandler{ctx:ctx.clone(),id:id,conn_id:conn_id.clone(),port:bind_port});
                                 if let Some(max_rate)=agent.max_rate{

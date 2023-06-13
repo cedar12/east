@@ -274,15 +274,16 @@ impl DatabasePlugin for SqlitePlugin {
 impl Plugin for SqlitePlugin{
 
     fn version(&self)->String {
-        "v0.0.2".into()
-    }
-
-    fn info(&self)->String {
-        "sqlite database plugin".into()
+        let version: &'static str = env!("CARGO_PKG_VERSION");
+        version.into()
     }
 
     fn author(&self)->String {
-        "cedar12.zxd@qq.com".into()
+        let author: &'static str = env!("CARGO_PKG_AUTHORS");
+        author.into()
+    }
+    fn info(&self)->String {
+        "sqlite database plugin".into()
     }
 
     fn plugin_type(&self)->east_plugin::plugin::Type {

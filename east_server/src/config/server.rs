@@ -7,8 +7,8 @@ pub struct Server {
     pub bind: String,
     #[serde(default = "default_plugin")]
     pub plugin:Plugin,
-    #[serde(default = "default_key")]
-    pub key:String,
+    // #[serde(default = "default_key")]
+    pub key:Option<String>,
 }
 
 impl Server{
@@ -16,7 +16,7 @@ impl Server{
         Self{
             bind:default_bind(),
             plugin:default_plugin(),
-            key:default_key()
+            key:None,//default_key()
         }
     }
 }

@@ -49,9 +49,9 @@ impl Handler<Msg> for AgentHandler {
             let mut bf=ByteBuf::new_from(&msg.data);
             let id=bf.read_u64_be();
             // proxy::ProxyMap.lock().await.remove(&id);
-            let map=proxy::ProxyMap.lock().await;
+            // let map=proxy::ProxyMap.lock().await;
             // println!("agent close {} {:?} ",id, map);
-            match map.get(&id){
+            match proxy::ProxyMap.read().await.get(&id){
               Some(ctx)=>{
                 ctx.close().await;
                 // proxy::ProxyMap.lock().await.remove(&id);
@@ -135,7 +135,8 @@ impl Handler<Msg> for AgentHandler {
     async fn close(&mut self, ctx: &Context<Msg>) {
         log::info!("关闭 {:?} ", ctx.addr());
         let _=self.tx.send(());
-        let mut map=proxy::ProxyMap.lock().await;
+        // let mut map=proxy::ProxyMap.lock().await;
+        let mut map=proxy::ProxyMap.write().await;
         for (_,v) in map.iter(){
           v.close().await;
         }
@@ -199,7 +200,8 @@ async fn proxy_forward(msg:Msg){
   let mut buf=vec![0u8;bf.readable_bytes()];
   bf.read_bytes(&mut buf);
   // println!("forward len {}:{} proxyMap {:?}",bytes.len(),buf.len(),proxy::ProxyMap.lock().await);
-  match proxy::ProxyMap.lock().await.get(&id){
+  // match proxy::ProxyMap.lock().await.get(&id){ 
+  match proxy::ProxyMap.read().await.get(&id){ 
     Some(ctx)=>{
       ctx.write(buf.to_vec()).await;
     },
