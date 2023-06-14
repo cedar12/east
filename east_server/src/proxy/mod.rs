@@ -98,7 +98,7 @@ impl Proxy {
     pub async fn listen(&mut self) -> Result<()> {
         let listen = TcpListener::bind(self.addr.as_str()).await?;
         self.listen = Arc::new(Some(listen));
-        log::info!("代理监听：{:?}", self.addr);
+        log::info!("Forward listening: {:?}", self.addr);
         Ok(())
     }
 
@@ -112,7 +112,7 @@ impl Proxy {
         let mut rv = self.c_rv.lock().await;
         let bind_port = self.port;
         if let Some(listen) = l.as_ref() {
-            log::info!("开始接受代理连接{}", conn_id);
+            log::info!("Start accepting connections {}", conn_id);
             loop {
                 select! {
                 _=rv.recv()=>{
@@ -124,13 +124,13 @@ impl Proxy {
                         Some(agent)=>{
                             let (mut stream,addr)=ret.unwrap();
                             if !agent.match_addr(addr.to_string()){
-                                log::warn!("IP->{:?},不在白名单列表内,阻止连接",addr);
+                                log::warn!("IP->{:?},Not in the whitelist list, blocking the connection",addr);
                                 let _=stream.shutdown().await;
                             }else{
                                 let id=last_id.fetch_add(1,Ordering::Relaxed) as u64;
                                 // self.ids.lock().await.push(id);
                                 self.ids.write().await.push(id);
-                                log::info!("{:?}连接代理端口, id->{}",addr,id);
+                                log::info!("{:?} Connect forwarding port, id->{}",addr,id);
                                 let mut boot=Bootstrap::build(stream, addr, ProxyEncoder::new(), ProxyDecoder::new(), ProxyHandler{ctx:ctx.clone(),id:id,conn_id:conn_id.clone(),port:bind_port});
                                 if let Some(max_rate)=agent.max_rate{
                                   boot.capacity(1024);
@@ -152,14 +152,14 @@ impl Proxy {
                                       },
                                       None=>{
                                         ctx.remove_attribute(PROXY_KEY.into()).await;
-                                        log::warn!("无{}的连接，关闭此监听",conn_id);
+                                        log::warn!("No {} connection, close this listening",conn_id);
                                         return Ok(())
                                       }
                                 }
                             }
                         },
                         None=>{
-                            log::warn!("无{}配置",conn_id);
+                            log::warn!("{} None",conn_id);
                             return Ok(())
                         }
                     }

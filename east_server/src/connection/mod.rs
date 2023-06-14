@@ -213,6 +213,15 @@ pub async fn file_signal() {
                                 },
                                 Ok(())=>{
                                     log::info!("{}发送文件{}完成",id,path);
+                                    match fs::remove_file(path.clone()) {
+                                        Ok(_) => {
+                                            log::info!("移除临时文件成功")
+                                        },
+                                        Err(e) => {
+                                            log::error!("移除临时文件{:?}",e)
+                                        },
+                                    };
+                                    
                                 }
                             }
                         }

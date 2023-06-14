@@ -21,7 +21,12 @@ use tokio::{io, net::TcpStream, time};
 #[tokio::main]
 async fn main() ->io::Result<()>{
     log_conf::init();
+    
     let conf=Arc::clone(&config::CONF);
+    let version: &'static str = env!("CARGO_PKG_VERSION");
+    log::info!("Version: {}", version);
+    let author: &'static str = env!("CARGO_PKG_AUTHORS");
+    log::info!("Author: {}", author);
     loop{
         let stream=TcpStream::connect(conf.server.clone()).await;
         match stream{
@@ -36,7 +41,7 @@ async fn main() ->io::Result<()>{
                 log::error!("{:?}",e)
             }
         }
-        log::info!("等待重连中");
+        log::info!("Waiting for reconnection");
         time::sleep(time::Duration::from_millis(3000)).await;
     }
 }

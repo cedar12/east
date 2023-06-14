@@ -25,7 +25,7 @@ impl ServerHandler {
 #[async_trait]
 impl Handler<Msg> for ServerHandler{
   async fn active(&mut self,ctx:&Context<Msg>){
-    log::info!("{} 尝试连接",ctx.addr());
+    log::info!("{} try to connect",ctx.addr());
     match SystemTime::now().duration_since(UNIX_EPOCH) {
       Ok(n) => {
         ctx.set_attribute(CONN_TIME_KEY.into(), Box::new(n.as_secs())).await;
@@ -42,7 +42,7 @@ impl Handler<Msg> for ServerHandler{
         match s{
           Ok(s)=>{
               
-            log::info!("{}请求认证",s);
+            log::info!("{} authentication",s);
             match agent_adapter(s.clone()).await{
               Some(agent)=>{
                 let id=s.clone();
@@ -51,7 +51,7 @@ impl Handler<Msg> for ServerHandler{
                 let opt=connection::Conns.get(s).await;
                 match opt{
                   Some(c)=>{
-                    log::info!("{:?}已经连接了，不能重复连接",c);
+                    log::info!("{:?} already connected, can't connect again",c.id());
                     ctx.close().await;
                     return
                   }
@@ -91,14 +91,14 @@ impl Handler<Msg> for ServerHandler{
                 
               },
               None=>{
-                log::warn!("无{}配置，认证不通过",s);
+                log::warn!("{} certification failed",s);
                 ctx.close().await;
               }
             }
 
           },
           Err(e)=>{
-            log::error!("密钥解密错误{:?}",e);
+            log::error!("key decryption error {:?}",e);
             ctx.close().await;
           }
         }
@@ -119,11 +119,11 @@ impl Handler<Msg> for ServerHandler{
             if let Err(e)=ret{
               log::error!("{:?}",e);
             }
-            log::info!("id->{},已关闭",fid);
+            log::info!("id->{} Closed",fid);
           });
           
         } else {
-          log::warn!("无{}处理器",fid);
+          log::warn!("{} None",fid);
         }
         
         
@@ -138,7 +138,7 @@ impl Handler<Msg> for ServerHandler{
             ctx.write(ProxyMsg{buf:buf}).await;
           },
           None=>{
-            log::warn!("无{}代理连接，无法转发",id);
+            log::warn!("{} No connection",id);
             let mut bf=ByteBuf::new_with_capacity(0);
             bf.write_u64_be(id).unwrap();
             let msg=Msg::new(TypesEnum::ProxyClose,bf.available_bytes().to_vec());
@@ -155,10 +155,10 @@ impl Handler<Msg> for ServerHandler{
         match result{
           Some(ctx)=>{
             ctx.close().await;
-            log::info!("关闭代理连接 {} ",id);
+            log::info!("Close connection {} ",id);
           },
           None=>{
-            log::warn!("无代理连接 {}",id)
+            log::warn!("No connection {}",id)
           }
         }
         
@@ -177,11 +177,8 @@ impl Handler<Msg> for ServerHandler{
           let err_msg=String::from_utf8(msg.data).unwrap();
           log::error!("发送文件信息错误：{}",err_msg);
         }else{
-          log::debug!("FileInfoAsk1");
           let id_attr=ctx.get_attribute("id".into()).await;
-          log::debug!("FileInfoAsk2");
           let id=id_attr.lock().await;
-          log::debug!("FileInfoAsk3");
           if let Some(id)=id.downcast_ref::<String>(){
             match connection::Conns.get(id.clone()).await{
               Some(c)=>{
@@ -205,7 +202,7 @@ impl Handler<Msg> for ServerHandler{
               }
             }
           }
-          log::debug!("FileInfoAsk4");
+
         }
       },
       TypesEnum::FileAsk=>{
@@ -222,7 +219,7 @@ impl Handler<Msg> for ServerHandler{
   }
 
   async fn close(&mut self,ctx:&Context<Msg>){
-    log::info!("{:?} 断开",ctx.addr());
+    log::info!("{:?} disconnect",ctx.addr());
     let id_attr=ctx.get_attribute("id".into()).await;
     let id=id_attr.lock().await;
     if let Some(id)=id.downcast_ref::<String>(){
@@ -233,11 +230,11 @@ impl Handler<Msg> for ServerHandler{
           c.remove_all().await;
         }
         None=>{
-          log::warn!("{}连接未获取到代理绑定端口",id)
+          log::warn!("{} the connection did not get to the proxy binding port",id)
         }
       }
       connection::Conns.remove(id.clone()).await;
-      log::info!("已移除{}相关连接",id);
+      log::info!("{} related connection removed",id);
     }
     ctx.remove_attribute("id".into()).await;
   }

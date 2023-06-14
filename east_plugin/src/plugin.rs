@@ -30,7 +30,7 @@ use crate::{agent::Agent, proxy::Proxy, control::{AgentControl, ProxyControl}};
 /// }
 /// ```
 /// 
-pub trait Plugin: Send + Sync{
+pub trait Plugin: Send + Sync {
   fn version(&self)->String;
   fn info(&self)->String;
   fn author(&self)->String;

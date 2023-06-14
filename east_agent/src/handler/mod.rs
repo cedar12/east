@@ -23,7 +23,7 @@ impl Handler<Msg> for AgentHandler {
         // println!("read len {:?}", msg.data.len());
         match msg.msg_type{
           TypesEnum::Auth=>{
-            log::info!("启动发送心跳线程");
+            log::info!("Start sending heartbeat thread");
             let ctx=ctx.clone();
             let mut sub=self.tx.subscribe();
             spawn(async move{
@@ -31,7 +31,7 @@ impl Handler<Msg> for AgentHandler {
                   time::sleep(time::Duration::from_millis(10000)).await;
                   let result=sub.try_recv();
                   if result.is_ok(){
-                    log::info!("退出发送心跳线程");
+                    log::info!("Exiting the send heartbeat thread");
                     return
                   }
                   let msg=Msg::new(TypesEnum::Heartbeat, vec![]);
@@ -58,7 +58,7 @@ impl Handler<Msg> for AgentHandler {
                 log::info!("agent close {} ",id);
               }, 
               None=>{
-                log::warn!("{} 不存在",id)
+                log::warn!("{} not exist",id)
               }
             }
             
@@ -117,7 +117,7 @@ impl Handler<Msg> for AgentHandler {
 
     }
     async fn active(&mut self, ctx: &Context<Msg>) {
-        log::info!("已连接 {:?}", ctx.addr());
+        log::info!("Connected {:?}", ctx.addr());
         let conf=Arc::clone(&config::CONF);
         let id=conf.id.clone();
         match key::encrypt(id){
@@ -126,14 +126,14 @@ impl Handler<Msg> for AgentHandler {
             ctx.write(msg).await;
           },
           Err(e)=>{
-            log::error!("公钥加载失败{:?}",e);
+            log::error!("Public key loading failed {:?}",e);
             ctx.close().await;
           }
         }
         
     }
     async fn close(&mut self, ctx: &Context<Msg>) {
-        log::info!("关闭 {:?} ", ctx.addr());
+        log::info!("close {:?} ", ctx.addr());
         let _=self.tx.send(());
         // let mut map=proxy::ProxyMap.lock().await;
         let mut map=proxy::ProxyMap.write().await;
@@ -170,7 +170,7 @@ async fn proxy_open(msg:Msg,ctx: Context<Msg>){
   match stream{
     Ok(stream)=>{
       let addr=stream.peer_addr().unwrap();
-      log::info!("代理连接{}",addr);
+      log::info!("connect {}",addr);
       let mut boot=Bootstrap::build(stream, addr, ProxyEncoder{}, ProxyDecoder{}, ProxyHandler{ctx: ctx.clone(),id:id});
       // boot.set_rate_limiter(east_core::token_bucket::TokenBucket::new(1024,1024)).await;
       let result=boot.run().await;
@@ -206,7 +206,7 @@ async fn proxy_forward(msg:Msg){
       ctx.write(buf.to_vec()).await;
     },
     None=>{
-      log::warn!("无对应id连接{}",id);
+      log::warn!("No corresponding ID connection {}",id);
     }
   };
 }

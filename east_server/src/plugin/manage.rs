@@ -69,7 +69,7 @@ impl PluginManager {
                 let plugin = unsafe { Box::from_raw(plugin_create()) };
                 let pi = PluginInfo::new(plugin, lib);
                 let name=String::from(path.file_stem().unwrap().to_str().unwrap());
-                log::info!("加载插件->{}{:?}",name,pi);
+                log::info!("Load the plugin -> {}{:?}",name,pi);
                 let namec=name.clone();
                 let pic=pi.clone();
                 self.plugins.insert(
@@ -97,7 +97,7 @@ impl PluginManager {
             let web=self.call_plugin_web(name).await;
             if let Some(web_plugin)=web{
               let bind=config::CONF.server.plugin.web.bind.clone();
-              log::info!("Web插件[{}]开始启动监听->{}",name,bind);
+              log::info!("Web Plugin[{}] Start listening->{}",name,bind);
               tokio::spawn(async move {
                 let account=(config::CONF.server.plugin.web.username.clone(),config::CONF.server.plugin.web.password.clone());
                 web_plugin.run(bind, db_plugin,(Box::new(AgentControlImpl::new()),Box::new(ProxyControlImpl::new())),account).unwrap();

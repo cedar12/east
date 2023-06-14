@@ -13,7 +13,7 @@ pub async fn run() -> Result<()> {
     let conf=Arc::clone(&config::CONF);
     let addr:SocketAddr=conf.server.bind.parse().unwrap();
     let listener=TcpListener::bind(addr).await.unwrap();
-    log::info!("服务启动->{}",addr);
+    log::info!("Service startup -> {}",addr);
     connection::Conns.clear_invalid_connection().await;
     loop{
         let (socket,addr)=listener.accept().await.unwrap();
