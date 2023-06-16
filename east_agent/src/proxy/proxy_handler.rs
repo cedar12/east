@@ -27,7 +27,7 @@ impl Handler<Vec<u8>> for ProxyHandler{
     bf.write_u64_be(self.id);
     let msg=Msg::new(TypesEnum::ProxyOpen, bf.available_bytes().to_vec());
     self.ctx.write(msg).await;
-    log::info!("回复代理打开成功")
+    // log::info!("回复代理打开成功")
   }
   async fn close(&mut self,ctx:&Context<Vec<u8>>){
     log::info!("close {:?} {}", ctx.addr(),self.id);

@@ -5,7 +5,7 @@ use log::LevelFilter;
 use log4rs::{Config, append::{console::ConsoleAppender, file::FileAppender}, encode::pattern::PatternEncoder, config::{Appender, Root, Logger}, Handle};
 use tokio::spawn;
 
-const PATTERN_ENCODER:&str="[EAST] {d(%Y-%m-%d %H:%M:%S)} - {l} -{t} - {m}{n}";
+const PATTERN_ENCODER:&str="[EAST] {d(%Y-%m-%d %H:%M:%S)} - {l} - {t}:{L} - {m}{n}";
 const DATETIME_FORMAT:&str="%Y%m%d";
 const CRON:&str="0 0 0 * * ?";
 

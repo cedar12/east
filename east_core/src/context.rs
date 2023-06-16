@@ -72,8 +72,23 @@ impl<T> Context<T> {
         let s=self.out_tx.lock().await;
         s.send(msg).await;
     }
-    pub async fn write(&self, msg:T) {
-        self.in_tx.lock().await.send(msg).await;
+    pub async fn write(&self, msg:T) ->Result<(),ContextError>{
+        match self.in_tx.try_lock() {
+            Ok(in_tx) => {
+                match in_tx.send(msg).await {
+                    Ok(_) => {
+                        Ok(())
+                    },
+                    Err(e)=>{
+                        Err(ContextError::new(e.to_string()))
+                    }
+                }   
+            },
+            Err(e) => {
+                Err(ContextError::new(format!("{:?}",e)))
+            },
+        }
+        // self.in_tx.lock().await.send(msg).await;
     }
 
     pub async fn close(&self) {
@@ -112,3 +127,37 @@ impl<T> Context<T> {
 
 }
 
+
+
+use std::error::Error;
+
+#[derive(Debug)]
+pub struct ContextError {
+    details: String
+}
+
+impl ContextError {
+    fn new(msg: String) -> ContextError {
+        ContextError{details: msg}
+    }
+}
+
+impl std::fmt::Display for ContextError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.details)
+    }
+}
+
+impl Error for ContextError {
+    fn description(&self) -> &str {
+        &self.details
+    }
+
+    fn cause(&self) -> Option<&dyn Error> {
+        None 
+    }
+
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        None
+    }
+}

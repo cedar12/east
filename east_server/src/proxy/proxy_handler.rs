@@ -26,7 +26,7 @@ impl Handler<ProxyMsg> for ProxyHandler{
 
   }
   async fn active(&mut self, ctx: &Context<ProxyMsg>) {
-    log::info!("[{}]proxy active {:?} id->{}",self.conn_id, ctx.addr(),self.id);
+    log::debug!("[{}]proxy active {:?} id->{}",self.conn_id, ctx.addr(),self.id);
     ctx.set_attribute(PORT_KEY.into(),Box::new(self.port)).await;
     proxy::ProxyMap.lock().await.insert(self.id,ctx.clone());
     let mut id_map=proxy::IdMap.lock().await;
@@ -41,7 +41,7 @@ impl Handler<ProxyMsg> for ProxyHandler{
   }
   async fn close(&mut self,ctx:&Context<ProxyMsg>){
     let mut map=proxy::ProxyMap.lock().await;
-    log::info!("proxy active close {:?}  id->{}", ctx.addr(),self.id);
+    log::debug!("proxy active close {:?}  id->{}", ctx.addr(),self.id);
     map.remove(&self.id);
     let mut id_map=proxy::IdMap.lock().await;
     match id_map.get_mut(&self.conn_id.clone()){

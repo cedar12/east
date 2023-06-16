@@ -141,31 +141,81 @@ impl Connections {
         tokio::spawn(async move{
             loop{
                 tokio::time::sleep(tokio::time::Duration::from_millis(2000)).await;
-                let mut conns=self_conns.write().await;
-                let r_conns=conns.clone();
-                for (id,conn) in r_conns.iter(){
+                // let mut conns=self_conns.write().await;
+                // let r_conns=conns.clone();
+                
+                for (id,conn) in self_conns.read().await.iter(){
                     let conn_c=conn.clone();
                     let ctx=conn_c.ctx();
                     let t=ctx.get_attribute(TIME_KEY.into()).await;
-                    let ht=t.lock().await;
-                    if let Some(t)=ht.downcast_ref::<u64>(){
-                        match SystemTime::now().duration_since(UNIX_EPOCH) {
-                            Ok(n) => {
-                                if n.as_secs()-t>TIME_OUT{
-                                    log::warn!("移除心跳过期连接: {}",id);
-                                    conn.remove_all().await;
-                                    ctx.close().await;
-                                    conns.remove(id);
+                    // let ht=t.lock().await;
+                    let ht=t.try_lock();
+                    match ht{
+                        Ok(ht)=>{
+                            if let Some(t)=ht.downcast_ref::<u64>(){
+                                match SystemTime::now().duration_since(UNIX_EPOCH) {
+                                    Ok(n) => {
+                                        if n.as_secs()-t>TIME_OUT{
+                                            log::warn!("移除心跳过期连接: {}",id);
+                                            // conn.remove_all().await;
+                                            conn.remove_all().await;
+                                            ctx.close().await;
+                                            // conns.remove(id);
+                                            self_conns.write().await.remove(id);
+                                        }
+                                    },
+                                    Err(e) => log::error!("{:?}",e),
                                 }
-                            },
-                            Err(e) => log::error!("{:?}",e),
+                            }
+                        },
+                        Err(e)=>{
+                            log::error!("{:?}",e);
                         }
                     }
-                    drop(ht)
+                    
                 }
-                drop(conns)
+
             }
         });
+        
+    }
+
+    pub async fn clear_invalid_connection_await(&self){
+        // let self_conns=Arc::clone(&self.conns);
+        loop{
+            tokio::time::sleep(tokio::time::Duration::from_millis(2000)).await;
+            for (id,conn) in self.conns.read().await.iter(){
+                let conn_c=conn.clone();
+                let ctx=conn_c.ctx();
+                let t=ctx.get_attribute(TIME_KEY.into()).await;
+                // let ht=t.lock().await;
+                let ht=t.try_lock();
+                match ht{
+                    Ok(ht)=>{
+                        if let Some(t)=ht.downcast_ref::<u64>(){
+                            match SystemTime::now().duration_since(UNIX_EPOCH) {
+                                Ok(n) => {
+                                    if n.as_secs()-t>TIME_OUT{
+                                        log::warn!("移除心跳过期连接: {}",id);
+                                        // conn.remove_all().await;
+                                        conn.remove_all().await;
+                                        ctx.close().await;
+                                        // conns.remove(id);
+                                        self.conns.write().await.remove(id);
+                                    }
+                                },
+                                Err(e) => log::error!("{:?}",e),
+                            }
+                        }
+                    },
+                    Err(e)=>{
+                        log::error!("{:?}",e);
+                    }
+                }
+                
+            }
+
+        }
         
     }
  

@@ -1,6 +1,6 @@
-use std::{sync::Arc, time::{SystemTime, UNIX_EPOCH}, collections::HashMap};
+use std::{sync::Arc, time::{SystemTime, UNIX_EPOCH}};
 
-use east_core::{handler::Handler, message::Msg, context::Context, types::TypesEnum, byte_buf::ByteBuf, bootstrap2::Bootstrap, token_bucket::TokenBucket, handler2::HandlerMut};
+use east_core::{handler::Handler, message::Msg, context::Context, types::TypesEnum, byte_buf::ByteBuf, bootstrap2::Bootstrap};
 use async_trait::async_trait;
 use east_plugin::agent::Agent;
 use tokio::{net::TcpStream, spawn, sync::Mutex};
@@ -51,7 +51,7 @@ impl Handler<Msg> for ServerHandler{
                 let opt=connection::Conns.get(s).await;
                 match opt{
                   Some(c)=>{
-                    log::info!("{:?} already connected, can't connect again",c.id());
+                    log::info!("{:?} already connected, Not allowed",c.id());
                     ctx.close().await;
                     return
                   }
@@ -119,11 +119,11 @@ impl Handler<Msg> for ServerHandler{
             if let Err(e)=ret{
               log::error!("{:?}",e);
             }
-            log::info!("id->{} Closed",fid);
+            log::debug!("id->{} Closed",fid);
           });
           
         } else {
-          log::warn!("{} None",fid);
+          log::debug!("open {} none",fid);
         }
         
         
@@ -138,7 +138,7 @@ impl Handler<Msg> for ServerHandler{
             ctx.write(ProxyMsg{buf:buf}).await;
           },
           None=>{
-            log::warn!("{} No connection",id);
+            log::debug!("{} No connection",id);
             let mut bf=ByteBuf::new_with_capacity(0);
             bf.write_u64_be(id).unwrap();
             let msg=Msg::new(TypesEnum::ProxyClose,bf.available_bytes().to_vec());
@@ -155,10 +155,10 @@ impl Handler<Msg> for ServerHandler{
         match result{
           Some(ctx)=>{
             ctx.close().await;
-            log::info!("Close connection {} ",id);
+            log::debug!("Close connection {} ",id);
           },
           None=>{
-            log::warn!("No connection {}",id)
+            log::debug!("No connection {}",id)
           }
         }
         

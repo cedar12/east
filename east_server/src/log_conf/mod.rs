@@ -10,7 +10,7 @@ use log4rs::{
 };
 use tokio::spawn;
 
-const PATTERN_ENCODER: &str = "[EAST] {d(%Y-%m-%d %H:%M:%S)} - {l} -{t} - {m}{n}";
+const PATTERN_ENCODER: &str = "[EAST] {d(%Y-%m-%d %H:%M:%S)} - {l} - {t}:{L} - {m}{n}";
 const DATETIME_FORMAT: &str = "%Y%m%d";
 // const DATETIME_FORMAT: &str = "%Y%m%d%H%M%S";
 const CRON: &str = "0 0 0 * * ?";

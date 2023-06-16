@@ -6,6 +6,7 @@ use east_core::message::msg_decoder::MsgDecoder;
 use east_core::message::msg_encoder::MsgEncoder;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::io::{Result};
+use tokio::spawn;
 use crate::{config, connection};
 use crate::handler::ServerHandler;
 
@@ -14,6 +15,8 @@ pub async fn run() -> Result<()> {
     let addr:SocketAddr=conf.server.bind.parse().unwrap();
     let listener=TcpListener::bind(addr).await.unwrap();
     log::info!("Service startup -> {}",addr);
+    // connection::Conns.clear_invalid_connection().await;
+    spawn(connection::Conns.clear_invalid_connection_await());
     connection::Conns.clear_invalid_connection().await;
     loop{
         let (socket,addr)=listener.accept().await.unwrap();

@@ -124,13 +124,13 @@ impl Proxy {
                         Some(agent)=>{
                             let (mut stream,addr)=ret.unwrap();
                             if !agent.match_addr(addr.to_string()){
-                                log::warn!("IP->{:?},Not in the whitelist list, blocking the connection",addr);
+                                log::warn!("IP->{:?},Not in the whitelist list, Not allowed",addr);
                                 let _=stream.shutdown().await;
                             }else{
                                 let id=last_id.fetch_add(1,Ordering::Relaxed) as u64;
                                 // self.ids.lock().await.push(id);
                                 self.ids.write().await.push(id);
-                                log::info!("{:?} Connect forwarding port, id->{}",addr,id);
+                                log::debug!("{:?} Connect forwarding port, id->{}",addr,id);
                                 let mut boot=Bootstrap::build(stream, addr, ProxyEncoder::new(), ProxyDecoder::new(), ProxyHandler{ctx:ctx.clone(),id:id,conn_id:conn_id.clone(),port:bind_port});
                                 if let Some(max_rate)=agent.max_rate{
                                   boot.capacity(1024);
@@ -152,14 +152,14 @@ impl Proxy {
                                       },
                                       None=>{
                                         ctx.remove_attribute(PROXY_KEY.into()).await;
-                                        log::warn!("No {} connection, close this listening",conn_id);
+                                        log::debug!("No {} connection, close this listening",conn_id);
                                         return Ok(())
                                       }
                                 }
                             }
                         },
                         None=>{
-                            log::warn!("{} None",conn_id);
+                            log::debug!("{} None",conn_id);
                             return Ok(())
                         }
                     }

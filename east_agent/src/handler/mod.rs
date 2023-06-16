@@ -12,7 +12,7 @@ pub struct AgentHandler {
 
 impl AgentHandler{
   pub fn new()->Self{
-    let (tx,_)=sync::broadcast::channel(1);
+    let (tx,_)=sync::broadcast::channel(64);
     AgentHandler { tx: tx}
   }
 }
@@ -136,11 +136,20 @@ impl Handler<Msg> for AgentHandler {
         log::info!("close {:?} ", ctx.addr());
         let _=self.tx.send(());
         // let mut map=proxy::ProxyMap.lock().await;
-        let mut map=proxy::ProxyMap.write().await;
-        for (_,v) in map.iter(){
-          v.close().await;
+        let proxy_map=proxy::ProxyMap.try_write();
+        match proxy_map{
+          Ok(mut map)=>{
+            for (_,v) in map.iter(){
+              v.close().await;
+            }
+            map.clear();
+          },
+          Err(e)=>{
+            log::error!("{:?}",e)
+          }
         }
-        map.clear();
+        // let mut map=proxy::ProxyMap.write().await;
+        
     }
 }
 
