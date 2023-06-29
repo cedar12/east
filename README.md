@@ -1,3 +1,4 @@
+项目停止更新，请前往[east_bin]获取新版(https://github.com/cedar12/east_bin.git)
 # east
 
 高性能、低占用的一款TCP端口转发工具。可以方便地将本地端口转发到远程服务器上。
